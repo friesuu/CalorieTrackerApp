@@ -2,6 +2,7 @@
 const GRAPHQL_URL = '/graphql';
 const PROFILE_FIELDS = `sex birthDate age heightCm weightKg activityLevel goal
   target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }`;
+const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG';
 
 // Validation errors keep their real messages in originalError (as an array);
 // other errors have a readable message directly.
@@ -61,4 +62,23 @@ export async function saveProfile(input)
         { input },
     );
     return data.saveProfile;
+}
+
+// The whole food library, A to Z
+export async function getFoods()
+{
+    const data = await graphqlRequest(`query { foods { ${FOOD_FIELDS} } }`);
+    return data.foods;
+}
+
+// Adds a food to the library. Returns it with its new id.
+export async function createFood(input)
+{
+    const data = await graphqlRequest(
+        `mutation CreateFood($input: CreateFoodInput!) {
+            createFood(input: $input) { ${FOOD_FIELDS} }
+        }`,
+        { input },
+    );
+    return data.createFood;
 }

@@ -111,6 +111,24 @@ fieldset.field {
   gap: 12px;
 }
 
+/* "(optional)" next to a label, and a short hint under it */
+.field-optional,
+.field-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.field-hint {
+  margin-top: -2px;
+  font-size: 0.875rem;
+}
+
+/* A smaller label inside a group, e.g. "Size" and "Unit" under "Serving" */
+.field-sublabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 .input {
   width: 100%;
   min-height: 48px;
@@ -326,6 +344,186 @@ fieldset[aria-invalid='true'] .options {
   gap: 16px;
 }
 
+/* ---------- Lists: rows inside one card, square, 1px dividers ---------- */
+
+.list-card {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.list-card > li + li {
+  border-top: 1px solid var(--border);
+}
+
+/* "6 foods" above a list */
+.list-meta {
+  margin-bottom: -8px; /* sits close to the list it describes */
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* Name | serving | calories. The name column takes the spare space and wraps if it must. */
+.food-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 16px;
+}
+
+.food-name {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.food-macros {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.food-serving {
+  color: var(--muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.food-kcal {
+  min-width: 4.5em; /* calories line up in one column */
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------- Toolbar: search and the main action ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.toolbar-search {
+  flex: 1;
+}
+
+.toolbar .btn {
+  min-height: 48px; /* same height as the search box beside it */
+  flex-shrink: 0;
+}
+
+/* ---------- Sheet: slides up from the bottom on phones, a centred box on laptops ---------- */
+
+.sheet {
+  width: 100%;
+  max-width: 100%;
+  max-height: 92svh;
+  margin: auto 0 0; /* pinned to the bottom of the screen */
+  padding: 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+.sheet[open] {
+  animation: sheet-up 0.2s ease-out;
+}
+
+.sheet::backdrop {
+  background-color: var(--scrim);
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+.sheet-header {
+  position: sticky; /* the title and close button stay put while a long form scrolls */
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px 8px 20px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet-header h2 {
+  font-size: 1.1rem;
+}
+
+.sheet-content {
+  padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+}
+
+/* A button that's only an icon: still 44px to tap */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+}
+
+/* ---------- Food form ---------- */
+
+.food-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field-trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.macros summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  list-style: none; /* our own arrow below, the same in every browser */
+}
+
+.macros summary::-webkit-details-marker {
+  display: none;
+}
+
+.macros summary::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.macros[open] summary::before {
+  transform: rotate(45deg);
+}
+
 /* ---------- Loading and "can't connect" screens ---------- */
 
 .status-screen {
@@ -482,11 +680,31 @@ fieldset[aria-invalid='true'] .options {
     position: sticky;
     top: 32px;
   }
+
+  .sheet {
+    width: min(520px, calc(100% - 32px));
+    max-height: 86svh;
+    margin: auto; /* centred */
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius-card);
+  }
+
+  .food-form .btn-block {
+    width: 100%;
+  }
+}
+
+/* Some people turn animations off in their system settings: respect that */
+@media (prefers-reduced-motion: reduce) {
+  .sheet[open] {
+    animation: none;
+  }
 }
 
 /* Hover only where there's a mouse, so a tapped button on a phone doesn't stay highlighted */
 @media (hover: hover) {
-  .nav-item:not(.active):hover {
+  .nav-item:not(.active):hover,
+  .icon-btn:hover {
     color: var(--ink);
   }
 }

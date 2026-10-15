@@ -9,6 +9,7 @@ import { Food } from '../src/foods/food.entity';
 import { BASIC_FOODS } from '../src/foods/basic-foods';
 import { Profile } from '../src/profiles/profile.entity';
 import { DailyLog } from '../src/daily-logs/daily-log.entity';
+import { LogEntry } from '../src/daily-logs/log-entry.entity';
 import { todayIn } from '../src/common/dates';
 
 // Each operation is written once and reused. $name = a variable sent separately.
@@ -35,6 +36,28 @@ const SAVE_PROFILE = `
   }
 `;
 
+const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG';
+
+const FOODS = `
+  query {
+    foods { ${FOOD_FIELDS} }
+  }
+`;
+
+const CREATE_FOOD = `
+  mutation CreateFood($input: CreateFoodInput!) {
+    createFood(input: $input) { ${FOOD_FIELDS} }
+  }
+`;
+
+const DELETE_FOOD = `
+  mutation DeleteFood($id: Int!) {
+    deleteFood(id: $id)
+  }
+`;
+
+const ROTI_CANAI = { name: 'Roti canai', servingSize: 1, servingUnit: 'piece', kcalPerServing: 300 };
+
 // Born on 1 January exactly 30 years ago, so the age is 30 whenever the tests run
 const TODAY = todayIn('Asia/Kuala_Lumpur');
 const THIRTY_YEARS_AGO = `${Number(TODAY.slice(0, 4)) - 30}-01-01`;
@@ -55,6 +78,8 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
   let foodsRepository: Repository<Food>;
   let profilesRepository: Repository<Profile>;
   let dailyLogsRepository: Repository<DailyLog>;
+  let logEntriesRepository: Repository<LogEntry>;
+  let userId: number; // the one user's id, found in beforeAll
 
   // Runs ONCE before all tests: build and start the app, and bring the test database's
   // tables up to date by running the same migrations as the real database
@@ -71,6 +96,8 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     foodsRepository = app.get(getRepositoryToken(Food));
     profilesRepository = app.get(getRepositoryToken(Profile));
     dailyLogsRepository = app.get(getRepositoryToken(DailyLog));
+    logEntriesRepository = app.get(getRepositoryToken(LogEntry));
+    userId = (await gql(ME).expect(200)).body.data.me.id; // also makes the user on a fresh test database
   });
 
   // Runs before EVERY test: no profile and no logged days, like a first run
@@ -87,6 +114,18 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
   // Every GraphQL call is POST /graphql with { query, variables }
   const gql = (query: string, variables?: Record<string, unknown>) =>
     request(app.getHttpServer()).post('/graphql').send({ query, variables });
+
+  // Back to just the basic foods (tests add and delete foods)
+  const resetFoods = async () => {
+    await foodsRepository.delete({ ownerId: userId });
+    await foodsRepository.save(BASIC_FOODS.map((food) => ({ ...food, ownerId: userId })));
+  };
+
+  const foodNames = async (): Promise<string[]> => {
+    const res = await gql(FOODS).expect(200);
+    expect(res.body.errors).toBeUndefined();
+    return res.body.data.foods.map((f: { name: string }) => f.name);
+  };
 
   // Error shapes (same as the task board):
   //   rejected by the schema      -> HTTP 400, extensions.code BAD_USER_INPUT
@@ -191,6 +230,149 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       const res = await gql(SAVE_PROFILE, { input: { ...PROFILE_INPUT, goal: 'LOSE_5' } }).expect(400);
 
       expect(res.body.errors[0].extensions.code).toBe('BAD_USER_INPUT');
+    });
+  });
+
+  describe('foods', () => {
+    beforeEach(resetFoods);
+
+    it('lists the library A to Z', async () => {
+      const names = await foodNames();
+
+      expect(names).toEqual(BASIC_FOODS.map((f) => f.name).sort((a, b) => a.localeCompare(b)));
+    });
+
+    it('sends macros as null when they are not known', async () => {
+      const res = await gql(FOODS).expect(200);
+
+      expect(res.body.data.foods[0].proteinG).toBeNull();
+    });
+
+    it('deletes a food', async () => {
+      const egg = await foodsRepository.findOneByOrFail({ ownerId: userId, name: 'Egg' });
+
+      const res = await gql(DELETE_FOOD, { id: egg.id }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.deleteFood).toBe(true);
+      expect(await foodNames()).not.toContain('Egg');
+    });
+
+    it('deleting a food keeps the days it was logged on', async () => {
+      const egg = await foodsRepository.findOneByOrFail({ ownerId: userId, name: 'Egg' });
+      const day = await dailyLogsRepository.save({ ownerId: userId, logDate: '2026-01-01', targetKcal: 1800 });
+      const entry = await logEntriesRepository.save({
+        dailyLogId: day.id, foodId: egg.id, name: 'Egg', servingSize: 1, servingUnit: 'large', kcalPerServing: 72, quantity: 2,
+      });
+
+      await gql(DELETE_FOOD, { id: egg.id }).expect(200);
+
+      const kept = await logEntriesRepository.findOneByOrFail({ id: entry.id });
+      expect(kept.foodId).toBeNull(); // no longer linked to the library...
+      expect(kept.name).toBe('Egg'); // ...but still says what you ate
+      expect(kept.kcalPerServing).toBe(72);
+    });
+
+    it('says which food was not found', async () => {
+      const res = await gql(DELETE_FOOD, { id: 999999 }).expect(200);
+
+      expect(res.body.errors[0].message).toBe('Food 999999 not found');
+    });
+  });
+
+  // YOUR TURN (step 4): these pass once createFood works end to end on the backend
+  describe('createFood', () => {
+    beforeEach(resetFoods);
+
+    it('adds a food to the library', async () => {
+      const res = await gql(CREATE_FOOD, { input: ROTI_CANAI }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.createFood).toMatchObject({ ...ROTI_CANAI, proteinG: null, carbsG: null, fatG: null });
+      expect(await foodNames()).toContain('Roti canai');
+    });
+
+    it('keeps protein, carbs and fat when they are given', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, proteinG: 6.5, carbsG: 38, fatG: 13.2 } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.createFood).toMatchObject({ proteinG: 6.5, carbsG: 38, fatG: 13.2 });
+    });
+
+    it('trims spaces around the name and unit', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, name: '  Roti canai  ', servingUnit: ' piece ' } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.createFood.name).toBe('Roti canai');
+      expect(res.body.data.createFood.servingUnit).toBe('piece');
+    });
+
+    it('can leave out the serving size and unit (counts as "1 serving")', async () => {
+      const res = await gql(CREATE_FOOD, { input: { name: 'Nasi lemak', kcalPerServing: 650 } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.createFood).toMatchObject({ servingSize: null, servingUnit: null });
+    });
+
+    it('saves a blank unit as no unit', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, servingUnit: '   ' } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.createFood.servingUnit).toBeNull();
+    });
+
+    it('rejects an empty name with a readable message, and saves nothing', async () => {
+      const before = await foodsRepository.countBy({ ownerId: userId });
+
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, name: '   ' } }).expect(200);
+
+      // A validation message, not a database error: only spaces should count as empty
+      expect(res.body.errors[0].extensions.originalError.message).toContain('name should not be empty');
+      expect(await foodsRepository.countBy({ ownerId: userId })).toBe(before);
+    });
+
+    it('accepts a name of up to 100 characters (the same limit as the form and the table)', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, name: 'x'.repeat(100) } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+    });
+
+    it('accepts 0 kcal, e.g. water or black coffee', async () => {
+      const res = await gql(CREATE_FOOD, { input: { name: 'Water', kcalPerServing: 0 } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.createFood.kcalPerServing).toBe(0);
+    });
+
+    it('accepts 0 g of a macro, e.g. no fat in rice', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, fatG: 0 } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.createFood.fatG).toBe(0);
+    });
+
+    it('rejects negative calories', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, kcalPerServing: -5 } }).expect(200);
+
+      expect(res.body.errors).toBeDefined();
+    });
+
+    it('rejects a serving size of 0', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, servingSize: 0 } }).expect(200);
+
+      expect(res.body.errors).toBeDefined();
+    });
+
+    it('only takes whole calories (GraphQL itself, HTTP 400)', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, kcalPerServing: 300.5 } }).expect(400);
+
+      expect(res.body.errors[0].extensions.code).toBe('BAD_USER_INPUT');
+    });
+
+    it('rejects a name that is already in the library', async () => {
+      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, name: 'Egg' } }).expect(200);
+
+      expect(res.body.errors[0].message).toBe('You already have a food called "Egg"');
     });
   });
 });

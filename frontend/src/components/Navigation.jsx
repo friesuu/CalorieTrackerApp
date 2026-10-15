@@ -1,5 +1,5 @@
 import { PAGES } from '../pages';
-import { TodayIcon, FoodsIcon, HistoryIcon, ProfileIcon } from './NavIcons';
+import { TodayIcon, FoodsIcon, HistoryIcon, ProfileIcon } from './Icons';
 
 const ICONS = {
     today: <TodayIcon />,

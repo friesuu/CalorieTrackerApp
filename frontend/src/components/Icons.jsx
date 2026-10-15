@@ -1,11 +1,11 @@
-// Line icons for the menu. Inline SVG like the task board's: no icon library needed,
+// Line icons. Inline SVG like the task board's: no icon library needed,
 // and currentColor makes each icon take its button's text colour.
 
-// The shared frame: size, line style, and hidden from screen readers (the button's text already says what it is)
-function Icon({ children })
+// The shared frame: size, line style, and hidden from screen readers (the button's text or aria-label says what it is)
+function Icon({ children, size = 22 })
 {
     return(
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             {children}
         </svg>
@@ -57,6 +57,28 @@ export function ProfileIcon()
         <Icon>
             <circle cx="12" cy="8" r="4" />
             <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
+        </Icon>
+    );
+}
+
+// A plus, for "Add"
+export function PlusIcon()
+{
+    return(
+        <Icon size={20}>
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+        </Icon>
+    );
+}
+
+// An X, for closing a sheet
+export function CloseIcon()
+{
+    return(
+        <Icon size={20}>
+            <path d="M6 6l12 12" />
+            <path d="M18 6L6 18" />
         </Icon>
     );
 }

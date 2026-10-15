@@ -24,14 +24,15 @@ export class Food {
   @Column({ length: 100 })
   name: string;
 
-  // One serving is servingSize + servingUnit, e.g. 1 "slice" or 250 "ml"
-  @Field(() => Float)
-  @Column({ name: 'serving_size', type: 'numeric', precision: 7, scale: 2, transformer: numericTransformer })
-  servingSize: number;
+  // One serving is servingSize + servingUnit, e.g. 1 "slice" or 250 "ml".
+  // Both optional: a food without them is simply "1 serving" (e.g. a plate of nasi lemak).
+  @Field(() => Float, { nullable: true })
+  @Column({ name: 'serving_size', type: 'numeric', precision: 7, scale: 2, nullable: true, transformer: numericTransformer })
+  servingSize: number | null;
 
-  @Field()
-  @Column({ name: 'serving_unit', length: 30 })
-  servingUnit: string;
+  @Field(() => String, { nullable: true })
+  @Column({ name: 'serving_unit', type: 'varchar', length: 30, nullable: true })
+  servingUnit: string | null;
 
   @Field(() => Int)
   @Column({ name: 'kcal_per_serving', type: 'int' })

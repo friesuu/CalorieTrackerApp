@@ -16,6 +16,7 @@
   --radius-card: 14px;
   --radius-control: 10px;
   --lift: 0 8px 24px rgba(28, 31, 26, 0.14); /* the one shadow: an item being dragged */
+  --scrim: rgba(28, 31, 26, 0.4);             /* dims the page behind an open sheet (--ink, see-through) */
 
   --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 

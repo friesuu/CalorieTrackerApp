@@ -7,6 +7,7 @@ import { extname, join } from 'path';
 import type { Request, Response } from 'express';
 import { UsersModule } from './users/users.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { FoodsModule } from './foods/foods.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ProfilesModule } from './profiles/profiles.module';
     }),
     UsersModule,
     ProfilesModule,
+    FoodsModule,
   ],
 })
 export class AppModule {}
