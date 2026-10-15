@@ -1,0 +1,77 @@
+/* Design tokens ("Soft Minimal"). Every colour in the app comes from here: no colours in components. */
+:root {
+  --ground: #F5F6F4;      /* page background */
+  --surface: #FFFFFF;     /* cards, inputs, sheets */
+  --ink: #1C1F1A;         /* primary text */
+  --muted: #6B7068;       /* secondary text, labels */
+  --border: #E4E6E1;      /* card borders and row dividers */
+  --accent: #2F9E6A;      /* progress fill, focus ring, icons, drop-zone border */
+  --over: #C2553A;        /* over-target state only */
+  --accent-soft: #E6F4EC; /* drop-zone highlight, selected row */
+
+  /* The same green, darker. White text on --accent is only 3.4:1, so buttons and green TEXT
+     use this one to reach 4.5:1. Not a second accent: same hue, for text only. */
+  --accent-strong: #1F7A50;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --lift: 0 8px 24px rgba(28, 31, 26, 0.14); /* the one shadow: an item being dragged */
+
+  --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+  background-color: var(--ground);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background-color: var(--ground);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+p {
+  margin: 0;
+}
+
+/* Form controls don't inherit the page font by default */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* One visible focus ring for everything you can tab to */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Calorie numbers: every digit the same width, so totals don't jitter as they change */
+.num {
+  font-variant-numeric: tabular-nums;
+}

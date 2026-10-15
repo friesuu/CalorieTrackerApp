@@ -1,0 +1,217 @@
+/* Phone first: these rules are for small screens, and the @media (min-width: 1024px) blocks
+   change what's needed for laptops. Colours come from the tokens in index.css. */
+
+/* ---------- Page layout ---------- */
+
+.app {
+  min-height: 100svh;
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  /* Bottom padding leaves room for the tab bar (and the iPhone home bar) */
+  padding: 20px 16px calc(88px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-header h1 {
+  font-size: 1.5rem;
+}
+
+/* ---------- Cards, text, buttons ---------- */
+
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* "Nothing here yet" inside a card */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px; /* big enough to tap */
+  padding: 0 18px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font-weight: 600;
+}
+
+.btn-primary {
+  background-color: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--surface);
+}
+
+/* ---------- Loading and "can't connect" screens ---------- */
+
+.status-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.status-card {
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.status-card h1 {
+  font-size: 1.25rem;
+}
+
+/* ---------- Navigation: a bottom tab bar on phones ---------- */
+
+.nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background-color: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-brand {
+  display: none; /* laptop only, see below */
+}
+
+.nav-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-item {
+  width: 100%;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* The pill behind the icon marks the open page, so it isn't shown by colour alone */
+.nav-icon {
+  display: inline-flex;
+  padding: 3px 16px;
+  border-radius: 999px;
+}
+
+.nav-item.active {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.nav-item.active .nav-icon {
+  background-color: var(--accent-soft);
+}
+
+/* ---------- Laptop: the same nav becomes a left sidebar ---------- */
+
+@media (min-width: 1024px) {
+  .app {
+    display: grid;
+    grid-template-columns: 232px 1fr;
+  }
+
+  .nav {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    padding: 24px 12px;
+    border-top: none;
+    border-right: 1px solid var(--border);
+  }
+
+  .nav-brand {
+    display: block;
+    padding: 0 12px 20px;
+    font-weight: 600;
+  }
+
+  .nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nav-item {
+    min-height: 44px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 0 12px;
+    border-radius: var(--radius-control);
+    font-size: 0.95rem;
+  }
+
+  .nav-icon {
+    padding: 0;
+  }
+
+  /* In the sidebar the whole row is the pill */
+  .nav-item.active {
+    background-color: var(--accent-soft);
+  }
+
+  .nav-item.active .nav-icon {
+    background: none;
+  }
+
+  .page {
+    padding: 32px 32px 48px;
+    gap: 24px;
+  }
+
+  .page-header h1 {
+    font-size: 1.75rem;
+  }
+}
+
+/* Hover only where there's a mouse, so a tapped button on a phone doesn't stay highlighted */
+@media (hover: hover) {
+  .nav-item:not(.active):hover {
+    color: var(--ink);
+  }
+}
+
+@media (hover: hover) and (min-width: 1024px) {
+  .nav-item:not(.active):hover {
+    background-color: var(--ground);
+  }
+}
