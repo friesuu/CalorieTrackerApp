@@ -1,5 +1,7 @@
 // Relative URL: Vite passes /graphql on to the API (see vite.config.js)
 const GRAPHQL_URL = '/graphql';
+const PROFILE_FIELDS = `sex birthDate age heightCm weightKg activityLevel goal
+  target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }`;
 
 // Validation errors keep their real messages in originalError (as an array);
 // other errors have a readable message directly.
@@ -41,9 +43,22 @@ async function graphqlRequest(query, variables) {
   return body.data;
 }
 
-// The one user (single-user mode). Used on start-up to check the API and database are reachable.
-export async function getMe()
+// The profile with its calorie target, or null on first run (nothing set up yet).
+// Also the first request the page makes, so it doubles as "is the server reachable?"
+export async function getProfile()
 {
-    const data = await graphqlRequest('query { me { id timezone } }');
-    return data.me;
+    const data = await graphqlRequest(`query { profile { ${PROFILE_FIELDS} } }`);
+    return data.profile;
+}
+
+// Creates the profile the first time, updates it after. Returns it with the recalculated target.
+export async function saveProfile(input)
+{
+    const data = await graphqlRequest(
+        `mutation SaveProfile($input: ProfileInput!) {
+            saveProfile(input: $input) { ${PROFILE_FIELDS} }
+        }`,
+        { input },
+    );
+    return data.saveProfile;
 }

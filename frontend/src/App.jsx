@@ -1,36 +1,51 @@
 import './App.css';
 import { useState, useEffect } from 'react';
-import { getMe } from './api';
+import { getProfile, saveProfile } from './api';
 import { PAGES } from './pages';
+import { formatKcal } from './numbers';
 import Navigation from './components/Navigation';
+import FirstRun from './components/FirstRun';
+import Profile from './components/Profile';
 
-// What each page will hold. Temporary: each one is replaced by the real page in its build step.
+// What the pages that aren't built yet will hold. Each is replaced by the real page in its build step.
 const COMING_SOON = {
   today: 'Your daily log arrives in step 5.',
   foods: 'Your food library arrives in step 4.',
   history: 'Your last 7 days arrive in step 7.',
-  profile: 'Your profile and calorie target arrive in step 3.',
 };
 
 function App()
 {
-  // undefined = still asking the server, object = connected
-  const [user, setUser] = useState(undefined);
+  // undefined = still asking the server, null = no profile yet (first run), object = the profile
+  const [profile, setProfile] = useState(undefined);
   const [error, setError] = useState(null);
   const [view, setView] = useState('today'); // which page is shown, see pages.js
 
-  // Once, when the page opens: check the API (and its database) answer
+  // Once, when the page opens: load the profile (this also checks the server is reachable)
   useEffect(() => {
-    getMe().then(setUser).catch((err) => setError(err.message));
+    getProfile().then(setProfile).catch((err) => setError(err.message));
   }, []);
 
   const retry = () => {
     setError(null);
-    getMe().then(setUser).catch((err) => setError(err.message));
+    getProfile().then(setProfile).catch((err) => setError(err.message));
+  };
+
+  // First run finished: show the app, starting on Today
+  const handleFirstRunDone = (saved) => {
+    setProfile(saved);
+    setView('today');
+  };
+
+  // Editing on the Profile page. Errors are shown inside the form, so they're passed back to it.
+  const handleSaveProfile = async (input) => {
+    const saved = await saveProfile(input);
+    setProfile(saved);
+    return saved;
   };
 
   // Choose the screen. These come after all the hooks above: React needs the same hooks on every render.
-  if (user === undefined)
+  if (profile === undefined)
   {
     return(
       <main className="status-screen">
@@ -47,6 +62,12 @@ function App()
     );
   }
 
+  // Nothing else is shown until the profile exists: every screen needs the calorie target
+  if (profile === null)
+  {
+    return <FirstRun onSave={saveProfile} onDone={handleFirstRunDone} />;
+  }
+
   const page = PAGES.find((p) => p.value === view);
 
   return(
@@ -58,9 +79,14 @@ function App()
           <h1>{page.label}</h1>
         </header>
 
-        <section className="card empty-state">
-          <p className="muted">{COMING_SOON[view]}</p>
-        </section>
+        {view === 'profile' ? (
+          <Profile profile={profile} onSave={handleSaveProfile} />
+        ) : (
+          <section className="card empty-state">
+            <p>Your daily target is <strong className="num">{formatKcal(profile.target.targetKcal)} kcal</strong>.</p>
+            <p className="muted">{COMING_SOON[view]}</p>
+          </section>
+        )}
       </main>
     </div>
   );

@@ -63,6 +63,269 @@
   color: var(--surface);
 }
 
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Full width on phones (easy to hit with a thumb), its natural width on laptops */
+.btn-block {
+  width: 100%;
+}
+
+.section-title {
+  font-size: 1.1rem;
+}
+
+/* ---------- Forms: label above, field, error under it ---------- */
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0; /* lets a field shrink inside the two-column row */
+}
+
+/* fieldset and legend come with a border and odd spacing by default */
+fieldset.field {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.field-label {
+  padding: 0;
+  font-weight: 500;
+}
+
+/* Height and weight side by side, even on a phone (they're short) */
+.field-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--over);
+}
+
+/* Hide the tiny up/down arrows on number inputs: the phone keypad does the job */
+.input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.input[type='number']::-webkit-inner-spin-button,
+.input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Errors use --over, the one warm colour, always as text (never colour alone) */
+.field-error,
+.form-error {
+  color: var(--over);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.form-success {
+  color: var(--accent-strong);
+  font-weight: 500;
+}
+
+/* ---------- Choice rows (radio buttons): square rows, 1px dividers, in one rounded group ---------- */
+
+.options {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden; /* keeps the selected row's fill inside the rounded corners */
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.option + .option {
+  border-top: 1px solid var(--border);
+}
+
+.option.selected {
+  background-color: var(--accent-soft);
+}
+
+.option input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.option-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-label {
+  font-weight: 500;
+}
+
+.option-hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* Two short choices side by side (Female / Male) */
+.options.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.options.segmented .option + .option {
+  border-top: none;
+  border-left: 1px solid var(--border);
+}
+
+fieldset[aria-invalid='true'] .options {
+  border-color: var(--over);
+}
+
+/* ---------- Target card: the hero number, then how it was worked out ---------- */
+
+.target-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-label {
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* The one big number on the screen */
+.hero-number {
+  font-size: 2.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-unit {
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Rows reach the card's edges (negative margin = the card's padding), separated by dividers */
+.breakdown {
+  margin: 16px -20px 0;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.breakdown-row dt {
+  display: flex;
+  flex-direction: column;
+}
+
+.breakdown-row dd {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.breakdown-hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.breakdown-row.total {
+  font-weight: 600;
+}
+
+.target-note {
+  margin: 4px -20px 0;
+  padding: 12px 20px 0;
+  border-top: 1px solid var(--border);
+}
+
+.target-method {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* ---------- First run: one centred column, no navigation ---------- */
+
+.first-run {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 32px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.first-run-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.first-run-header h1 {
+  font-size: 1.75rem;
+}
+
+.first-run .btn-block {
+  width: 100%;
+}
+
+/* ---------- Profile page ---------- */
+
+.profile-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 /* ---------- Loading and "can't connect" screens ---------- */
 
 .status-screen {
@@ -200,6 +463,24 @@
 
   .page-header h1 {
     font-size: 1.75rem;
+  }
+
+  .btn-block {
+    width: auto;
+    align-self: flex-start;
+  }
+
+  /* Target on the left (stays in view while you scroll the form), details on the right */
+  .profile-layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+  }
+
+  .target-card {
+    position: sticky;
+    top: 32px;
   }
 }
 

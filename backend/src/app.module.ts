@@ -6,6 +6,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { extname, join } from 'path';
 import type { Request, Response } from 'express';
 import { UsersModule } from './users/users.module';
+import { ProfilesModule } from './profiles/profiles.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module';
       }),
     }),
     UsersModule,
+    ProfilesModule,
   ],
 })
 export class AppModule {}

@@ -7,6 +7,78 @@ type User {
   timezone: String!
 }
 
+type Profile {
+  sex: Sex!
+  birthDate: String!
+  heightCm: Float!
+  weightKg: Float!
+  activityLevel: ActivityLevel!
+  goal: Goal!
+  age: Int!
+  target: CalorieTarget!
+}
+
+enum Sex {
+  FEMALE
+  MALE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum Goal {
+  MAINTAIN
+  LOSE_0_25
+  LOSE_0_5
+  LOSE_0_75
+}
+
+type CalorieTarget {
+  maintenanceKcal: Int!
+  goalDeficitKcal: Int!
+  minimumKcal: Int!
+  targetKcal: Int!
+  capped: Boolean!
+}
+
+type LogEntry {
+  id: Int!
+  foodId: Int
+  name: String!
+  servingSize: Float!
+  servingUnit: String!
+  kcalPerServing: Int!
+  proteinG: Float
+  carbsG: Float
+  fatG: Float
+  quantity: Float!
+  createdAt: DateTime!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 type Query {
   me: User!
+  profile: Profile
+}
+
+type Mutation {
+  saveProfile(input: ProfileInput!): Profile!
+}
+
+input ProfileInput {
+  sex: Sex!
+  birthDate: String!
+  heightCm: Float!
+  weightKg: Float!
+  activityLevel: ActivityLevel!
+  goal: Goal!
 }

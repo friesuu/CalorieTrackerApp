@@ -1,0 +1,62 @@
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Profile } from './profile.entity';
+import { SaveProfileDto } from './save-profile.dto';
+import { CalorieTarget, calculateTarget } from './calorie-target';
+import { DailyLog } from '../daily-logs/daily-log.entity';
+import { User } from '../users/user.entity';
+import { ageOn, todayIn } from '../common/dates';
+
+@Injectable()
+export class ProfilesService {
+  constructor(
+    @InjectRepository(Profile)
+    private readonly profilesRepository: Repository<Profile>,
+    @InjectRepository(DailyLog)
+    private readonly dailyLogsRepository: Repository<DailyLog>,
+  ) {}
+
+  // null = not set up yet (the app shows the first-run screen)
+  findForUser(userId: number): Promise<Profile | null> {
+    return this.profilesRepository.findOneBy({ userId });
+  }
+
+  // Makes the profile the first time, updates it after that (a user only ever has one)
+  async save(dto: SaveProfileDto, user: User): Promise<Profile> {
+    const today = todayIn(user.timezone);
+    const age = ageOn(dto.birthDate, today);
+    // The formula and the safe minimums are for adults
+    if (age < 18 || age > 100) {
+      throw new BadRequestException('Age must be between 18 and 100');
+    }
+
+    const profile = (await this.findForUser(user.id)) ?? this.profilesRepository.create({ userId: user.id });
+    this.profilesRepository.merge(profile, dto);
+    const saved = await this.profilesRepository.save(profile);
+
+    // Today follows the new target straight away. Past days keep the target they had.
+    // (Does nothing if nothing has been logged today yet: today's log is made with the new target anyway.)
+    await this.dailyLogsRepository.update(
+      { ownerId: user.id, logDate: today },
+      { targetKcal: this.targetFor(saved, user).targetKcal },
+    );
+
+    return saved;
+  }
+
+  ageOf(profile: Profile, user: User): number {
+    return ageOn(profile.birthDate, todayIn(user.timezone));
+  }
+
+  targetFor(profile: Profile, user: User): CalorieTarget {
+    return calculateTarget({
+      sex: profile.sex,
+      age: this.ageOf(profile, user),
+      heightCm: profile.heightCm,
+      weightKg: profile.weightKg,
+      activityLevel: profile.activityLevel,
+      goal: profile.goal,
+    });
+  }
+}
