@@ -15,3 +15,31 @@ export function yearsBefore(date, years)
 {
     return `${Number(date.slice(0, 4)) - years}${date.slice(4)}`;
 }
+
+// The day `days` after `date` (negative = before). Worked out in UTC, so a time zone can't shift the day.
+export function addDays(date, days)
+{
+    const d = new Date(`${date}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+}
+
+// 'YYYY-MM-DD' shown in words. timeZone UTC matches the way the date was made above.
+function formatDate(date, options)
+{
+    return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { ...options, timeZone: 'UTC' });
+}
+
+// Short name for a day: "Today", "Yesterday", or "Tue 13 Oct"
+export function dayLabel(date, today)
+{
+    if (date === today) return 'Today';
+    if (date === addDays(today, -1)) return 'Yesterday';
+    return formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+// "Thursday 15 October"
+export function longDate(date)
+{
+    return formatDate(date, { weekday: 'long', day: 'numeric', month: 'long' });
+}

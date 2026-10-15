@@ -8,6 +8,7 @@
 }
 
 .page {
+  width: 100%; /* without this, margin: auto inside the laptop grid shrinks the page to fit its content */
   max-width: 1100px;
   margin: 0 auto;
   /* Bottom padding leaves room for the tab bar (and the iPhone home bar) */
@@ -524,6 +525,263 @@ fieldset[aria-invalid='true'] .options {
   transform: rotate(45deg);
 }
 
+/* ---------- Rows you can tap (a food to edit, an entry to change) ---------- */
+
+.row-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+}
+
+.row-button .food-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-button:focus-visible {
+  outline-offset: -2px; /* inside the row, so the card's rounded corners don't cut it off */
+}
+
+.row-chevron {
+  display: flex;
+  padding-right: 12px;
+  margin-left: -4px;
+  color: var(--muted);
+}
+
+/* ---------- Buttons: destructive, asking first ---------- */
+
+.btn-danger {
+  color: var(--over);
+}
+
+.sheet-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* "Delete Egg? …" with Keep it / Delete. A divider above it, not another box. */
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ---------- Today: day header, summary card, actions, recent foods ---------- */
+
+.today-stack,
+.today-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.day-arrows {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Over target: the hero number and the bar turn --over, and the label says "Over target" */
+.summary-card.over .hero-number {
+  color: var(--over);
+}
+
+.progress {
+  height: 8px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background-color: var(--border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background-color: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.summary-card.over .progress-fill {
+  background-color: var(--over);
+}
+
+.summary-totals {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.summary-totals strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.summary-macros {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.day-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.day-actions .btn {
+  flex: 1; /* two equal, thumb-sized buttons on a phone */
+}
+
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recent .list-meta,
+.day-log .list-meta {
+  margin-bottom: 0;
+  font-weight: 500;
+}
+
+.day-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Chips scroll sideways, edge to edge on a phone (negative margin = the page padding) */
+.chips {
+  display: flex;
+  gap: 8px;
+  margin: 0 -16px;
+  padding: 0 16px 4px;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip-kcal {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+/* ---------- Picking a food (sheet on phones, library panel on laptops) ---------- */
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.picker-list {
+  margin: 0 -20px; /* rows reach the edges of the sheet or card */
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.picker-list > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.picker-list .food-row {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.picker .empty-state {
+  padding: 24px 0 8px;
+}
+
+.picker-message {
+  padding: 8px 0;
+}
+
+/* ---------- How many servings: − [ 1.5 ] +   = 158 kcal ---------- */
+
+.quantity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.quantity-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper-btn {
+  width: 48px;
+  min-height: 48px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.stepper-input {
+  width: 88px;
+  text-align: center;
+}
+
+.stepper-total {
+  margin-left: auto;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* ---------- Loading and "can't connect" screens ---------- */
 
 .status-screen {
@@ -689,8 +947,53 @@ fieldset[aria-invalid='true'] .options {
     border-radius: var(--radius-card);
   }
 
-  .food-form .btn-block {
+  .food-form .btn-block,
+  .quantity-form .btn-block,
+  .sheet-stack .btn-block {
     width: 100%;
+  }
+
+  /* Today: the log on the left, the food library on the right (room for drag and drop in step 6) */
+  .today-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+    align-items: start;
+    gap: 24px;
+  }
+
+  .today-main {
+    gap: 24px;
+  }
+
+  .day-actions .btn {
+    flex: 0 0 auto;
+  }
+
+  .chips {
+    flex-wrap: wrap; /* plenty of width: wrap instead of scrolling */
+    margin: 0;
+    padding: 0;
+  }
+
+  /* The library stays in view while the log scrolls; its list scrolls on its own */
+  .library-panel {
+    position: sticky;
+    top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: calc(100svh - 64px);
+    overflow: hidden;
+  }
+
+  .library-panel .picker {
+    flex: 1;
+  }
+
+  .library-panel .picker-list {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: -20px; /* down to the card's bottom edge */
   }
 }
 
@@ -706,6 +1009,13 @@ fieldset[aria-invalid='true'] .options {
   .nav-item:not(.active):hover,
   .icon-btn:hover {
     color: var(--ink);
+  }
+}
+
+@media (hover: hover) {
+  .row-button:hover,
+  .chip:hover {
+    background-color: var(--ground);
   }
 }
 

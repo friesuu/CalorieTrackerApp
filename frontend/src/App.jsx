@@ -1,16 +1,16 @@
 import './App.css';
 import { useState, useEffect } from 'react';
-import { getProfile, saveProfile, getFoods, createFood } from './api';
+import { getProfile, saveProfile, getFoods, createFood, updateFood, deleteFood } from './api';
 import { PAGES } from './pages';
 import { formatKcal } from './numbers';
 import Navigation from './components/Navigation';
 import FirstRun from './components/FirstRun';
 import Profile from './components/Profile';
 import Foods from './components/Foods';
+import Today from './components/Today';
 
 // What the pages that aren't built yet will hold. Each is replaced by the real page in its build step.
 const COMING_SOON = {
-  today: 'Your daily log arrives in step 5.',
   history: 'Your last 7 days arrive in step 7.',
 };
 
@@ -67,6 +67,18 @@ function App()
     return created;
   };
 
+  // Editing can change the name, so the list is sorted again
+  const handleUpdateFood = async (id, changes) => {
+    const updated = await updateFood(id, changes);
+    setFoods((prev) => prev.map((f) => (f.id === id ? updated : f)).sort((a, b) => a.name.localeCompare(b.name)));
+    return updated;
+  };
+
+  const handleDeleteFood = async (id) => {
+    await deleteFood(id);
+    setFoods((prev) => prev.filter((f) => f.id !== id));
+  };
+
   // Choose the screen. These come after all the hooks above: React needs the same hooks on every render.
   if (profile === undefined)
   {
@@ -98,14 +110,26 @@ function App()
       <Navigation currentView={view} onNavigate={setView} />
 
       <main className="page">
-        <header className="page-header">
-          <h1>{page.label}</h1>
-        </header>
+        {/* Today has its own header, with the day arrows */}
+        {view !== 'today' && (
+          <header className="page-header">
+            <h1>{page.label}</h1>
+          </header>
+        )}
+
+        {view === 'today' && <Today foods={foods} foodsError={foodsError} onRetryFoods={retryFoods} />}
 
         {view === 'profile' && <Profile profile={profile} onSave={handleSaveProfile} />}
 
         {view === 'foods' && (
-          <Foods foods={foods} loadError={foodsError} onRetry={retryFoods} onCreate={handleCreateFood} />
+          <Foods
+            foods={foods}
+            loadError={foodsError}
+            onRetry={retryFoods}
+            onCreate={handleCreateFood}
+            onUpdate={handleUpdateFood}
+            onDelete={handleDeleteFood}
+          />
         )}
 
         {COMING_SOON[view] && (

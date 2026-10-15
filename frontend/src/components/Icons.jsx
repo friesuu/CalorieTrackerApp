@@ -82,3 +82,32 @@ export function CloseIcon()
         </Icon>
     );
 }
+
+// Arrows for "previous day" / "next day", and the > at the end of a row you can tap
+export function ChevronLeftIcon()
+{
+    return(
+        <Icon size={20}>
+            <path d="M15 6l-6 6 6 6" />
+        </Icon>
+    );
+}
+
+export function ChevronRightIcon({ size = 20 })
+{
+    return(
+        <Icon size={size}>
+            <path d="M9 6l6 6-6 6" />
+        </Icon>
+    );
+}
+
+// A minus, for "one less"
+export function MinusIcon()
+{
+    return(
+        <Icon size={20}>
+            <path d="M5 12h14" />
+        </Icon>
+    );
+}

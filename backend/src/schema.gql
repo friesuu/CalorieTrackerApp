@@ -69,6 +69,7 @@ type LogEntry {
   fatG: Float
   quantity: Float!
   createdAt: DateTime!
+  kcal: Int!
 }
 
 """
@@ -76,16 +77,34 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type DailyLog {
+  date: String!
+  targetKcal: Int!
+  entries: [LogEntry!]!
+  eatenKcal: Int!
+  remainingKcal: Int!
+  proteinG: Float
+  carbsG: Float
+  fatG: Float
+}
+
 type Query {
   me: User!
   profile: Profile
   foods: [Food!]!
+  dailyLog(date: String): DailyLog!
+  recentFoods: [Food!]!
 }
 
 type Mutation {
   saveProfile(input: ProfileInput!): Profile!
   createFood(input: CreateFoodInput!): Food!
+  updateFood(id: Int!, input: UpdateFoodInput!): Food!
   deleteFood(id: Int!): Boolean!
+  addLogEntry(input: AddLogEntryInput!): DailyLog!
+  quickAdd(input: QuickAddInput!): DailyLog!
+  updateLogEntry(id: Int!, input: UpdateLogEntryInput!): DailyLog!
+  deleteLogEntry(id: Int!): DailyLog!
 }
 
 input ProfileInput {
@@ -105,4 +124,30 @@ input CreateFoodInput {
   proteinG: Float
   carbsG: Float
   fatG: Float
+}
+
+input UpdateFoodInput {
+  name: String
+  servingSize: Float
+  servingUnit: String
+  kcalPerServing: Int
+  proteinG: Float
+  carbsG: Float
+  fatG: Float
+}
+
+input AddLogEntryInput {
+  foodId: Int!
+  quantity: Float!
+  date: String
+}
+
+input QuickAddInput {
+  name: String
+  kcal: Int!
+  date: String
+}
+
+input UpdateLogEntryInput {
+  quantity: Float!
 }

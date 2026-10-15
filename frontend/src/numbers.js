@@ -16,3 +16,12 @@ export function formatServing(size, unit)
     if (size === null) return unit ? `1 ${unit}` : '1 serving';
     return unit ? `${formatAmount(size)} ${unit}` : formatAmount(size);
 }
+
+// How much of a food an entry is: quantity × one serving, said simply.
+// 2 × (1 large) → "2 large", 1.5 × (250 ml) → "375 ml", 1.5 × (plate) → "1.5 plate", 2 × (nothing) → "2 servings"
+export function formatPortion(quantity, size, unit)
+{
+    if (size !== null) return `${formatAmount(quantity * size)} ${unit ?? ''}`.trim();
+    if (unit) return `${formatAmount(quantity)} ${unit}`;
+    return quantity === 1 ? '1 serving' : `${formatAmount(quantity)} servings`;
+}

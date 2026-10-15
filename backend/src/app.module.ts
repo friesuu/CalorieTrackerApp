@@ -8,6 +8,7 @@ import type { Request, Response } from 'express';
 import { UsersModule } from './users/users.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { FoodsModule } from './foods/foods.module';
+import { DailyLogsModule } from './daily-logs/daily-logs.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { FoodsModule } from './foods/foods.module';
     UsersModule,
     ProfilesModule,
     FoodsModule,
+    DailyLogsModule,
   ],
 })
 export class AppModule {}

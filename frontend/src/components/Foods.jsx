@@ -2,29 +2,42 @@ import { useState } from 'react';
 import FoodRow from './FoodRow';
 import FoodForm from './FoodForm';
 import Sheet from './Sheet';
-import { PlusIcon } from './Icons';
+import ConfirmButton from './ConfirmButton';
+import { PlusIcon, ChevronRightIcon } from './Icons';
+import { filterFoods } from '../foodSearch';
 
-// The Foods page: search, the library A to Z, and Add food.
+// The Foods page: search, the library A to Z, add, and tap a food to edit or delete it.
 // foods comes from App (null while loading). Search only filters what's already loaded: no request per letter.
-function Foods({ foods, loadError, onRetry, onCreate })
+function Foods({ foods, loadError, onRetry, onCreate, onUpdate, onDelete })
 {
     const [search, setSearch] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [addName, setAddName] = useState(''); // "Add 'nasi lemak'" from an empty search fills the name in
+    const [editing, setEditing] = useState(null); // the food being edited, or null
 
     const openAdd = (name = '') => {
         setAddName(name);
         setIsAdding(true);
     };
 
-    // Close the sheet only once the save worked. If it throws, FoodForm shows the error and stays open.
+    // Each closes its sheet only once the save worked. If it throws, the form shows the error and stays open.
     const handleCreate = async (input) => {
         await onCreate(input);
         setIsAdding(false);
     };
 
-    const query = search.trim().toLowerCase();
-    const shown = foods && query ? foods.filter((f) => f.name.toLowerCase().includes(query)) : foods;
+    const handleUpdate = async (input) => {
+        await onUpdate(editing.id, input);
+        setEditing(null);
+    };
+
+    const handleDelete = async () => {
+        await onDelete(editing.id);
+        setEditing(null);
+    };
+
+    const shown = foods && filterFoods(foods, search);
+    const query = search.trim();
 
     // Which list state to show. Loading, failed and empty all get their own message, not a blank card.
     let content;
@@ -56,8 +69,8 @@ function Foods({ foods, loadError, onRetry, onCreate })
     {
         content = (
             <section className="card empty-state">
-                <p>No foods match “{search.trim()}”.</p>
-                <button className="btn" onClick={() => openAdd(search.trim())}>Add “{search.trim()}”</button>
+                <p>No foods match “{query}”.</p>
+                <button className="btn" onClick={() => openAdd(query)}>Add “{query}”</button>
             </section>
         );
     }
@@ -71,7 +84,11 @@ function Foods({ foods, loadError, onRetry, onCreate })
                 <ul className="card list-card" aria-label="Your foods">
                     {shown.map((food) => (
                         <li key={food.id}>
-                            <FoodRow food={food} />
+                            {/* The whole row is the button: easy to hit on a phone. The arrow says "opens something". */}
+                            <button className="row-button" onClick={() => setEditing(food)} aria-label={`Edit ${food.name}`}>
+                                <FoodRow food={food} />
+                                <span className="row-chevron"><ChevronRightIcon size={18} /></span>
+                            </button>
                         </li>
                     ))}
                 </ul>
@@ -103,6 +120,20 @@ function Foods({ foods, loadError, onRetry, onCreate })
 
             <Sheet title="Add food" isOpen={isAdding} onClose={() => setIsAdding(false)}>
                 <FoodForm initialName={addName} submitLabel="Add food" onSave={handleCreate} />
+            </Sheet>
+
+            <Sheet title="Edit food" isOpen={editing !== null} onClose={() => setEditing(null)}>
+                {editing && (
+                    <div className="sheet-stack">
+                        <FoodForm food={editing} submitLabel="Save changes" onSave={handleUpdate} />
+                        <ConfirmButton
+                            label="Delete food"
+                            question={`Delete “${editing.name}” from your library? Days you've already logged it on keep their calories.`}
+                            confirmLabel="Delete"
+                            onConfirm={handleDelete}
+                        />
+                    </div>
+                )}
             </Sheet>
         </>
     );

@@ -3,6 +3,8 @@ const GRAPHQL_URL = '/graphql';
 const PROFILE_FIELDS = `sex birthDate age heightCm weightKg activityLevel goal
   target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }`;
 const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG';
+const DAY_FIELDS = `date targetKcal eatenKcal remainingKcal proteinG carbsG fatG
+  entries { id foodId name servingSize servingUnit kcalPerServing quantity kcal }`;
 
 // Validation errors keep their real messages in originalError (as an array);
 // other errors have a readable message directly.
@@ -81,4 +83,91 @@ export async function createFood(input)
         { input },
     );
     return data.createFood;
+}
+
+// Saves changes to a food. Days it was already logged on keep their own copy.
+export async function updateFood(id, changes)
+{
+    const data = await graphqlRequest(
+        `mutation UpdateFood($id: Int!, $input: UpdateFoodInput!) {
+            updateFood(id: $id, input: $input) { ${FOOD_FIELDS} }
+        }`,
+        { id, input: changes },
+    );
+    return data.updateFood;
+}
+
+export async function deleteFood(id)
+{
+    await graphqlRequest(
+        `mutation DeleteFood($id: Int!) {
+            deleteFood(id: $id)
+        }`,
+        { id },
+    );
+}
+
+// One day's log with its totals. No date = today (the server decides "today", in your time zone).
+export async function getDailyLog(date)
+{
+    const data = await graphqlRequest(
+        `query DailyLog($date: String) { dailyLog(date: $date) { ${DAY_FIELDS} } }`,
+        { date: date ?? null },
+    );
+    return data.dailyLog;
+}
+
+// The last few different foods you logged, newest first
+export async function getRecentFoods()
+{
+    const data = await graphqlRequest(`query { recentFoods { ${FOOD_FIELDS} } }`);
+    return data.recentFoods;
+}
+
+// The log changes below all return the whole day, with fresh totals from the server
+
+// input: { foodId, quantity, date }
+export async function addLogEntry(input)
+{
+    const data = await graphqlRequest(
+        `mutation AddLogEntry($input: AddLogEntryInput!) {
+            addLogEntry(input: $input) { ${DAY_FIELDS} }
+        }`,
+        { input },
+    );
+    return data.addLogEntry;
+}
+
+// input: { name, kcal, date }
+export async function quickAdd(input)
+{
+    const data = await graphqlRequest(
+        `mutation QuickAdd($input: QuickAddInput!) {
+            quickAdd(input: $input) { ${DAY_FIELDS} }
+        }`,
+        { input },
+    );
+    return data.quickAdd;
+}
+
+export async function updateLogEntry(id, quantity)
+{
+    const data = await graphqlRequest(
+        `mutation UpdateLogEntry($id: Int!, $input: UpdateLogEntryInput!) {
+            updateLogEntry(id: $id, input: $input) { ${DAY_FIELDS} }
+        }`,
+        { id, input: { quantity } },
+    );
+    return data.updateLogEntry;
+}
+
+export async function deleteLogEntry(id)
+{
+    const data = await graphqlRequest(
+        `mutation DeleteLogEntry($id: Int!) {
+            deleteLogEntry(id: $id) { ${DAY_FIELDS} }
+        }`,
+        { id },
+    );
+    return data.deleteLogEntry;
 }

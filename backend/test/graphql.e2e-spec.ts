@@ -10,7 +10,7 @@ import { BASIC_FOODS } from '../src/foods/basic-foods';
 import { Profile } from '../src/profiles/profile.entity';
 import { DailyLog } from '../src/daily-logs/daily-log.entity';
 import { LogEntry } from '../src/daily-logs/log-entry.entity';
-import { todayIn } from '../src/common/dates';
+import { addDays, todayIn } from '../src/common/dates';
 
 // Each operation is written once and reused. $name = a variable sent separately.
 const ME = `
@@ -47,6 +47,53 @@ const FOODS = `
 const CREATE_FOOD = `
   mutation CreateFood($input: CreateFoodInput!) {
     createFood(input: $input) { ${FOOD_FIELDS} }
+  }
+`;
+
+const UPDATE_FOOD = `
+  mutation UpdateFood($id: Int!, $input: UpdateFoodInput!) {
+    updateFood(id: $id, input: $input) { ${FOOD_FIELDS} }
+  }
+`;
+
+const DAY_FIELDS = `
+  date targetKcal eatenKcal remainingKcal proteinG carbsG fatG
+  entries { id foodId name servingSize servingUnit kcalPerServing quantity kcal }
+`;
+
+const DAILY_LOG = `
+  query DailyLog($date: String) {
+    dailyLog(date: $date) { ${DAY_FIELDS} }
+  }
+`;
+
+const ADD_LOG_ENTRY = `
+  mutation AddLogEntry($input: AddLogEntryInput!) {
+    addLogEntry(input: $input) { ${DAY_FIELDS} }
+  }
+`;
+
+const QUICK_ADD = `
+  mutation QuickAdd($input: QuickAddInput!) {
+    quickAdd(input: $input) { ${DAY_FIELDS} }
+  }
+`;
+
+const UPDATE_LOG_ENTRY = `
+  mutation UpdateLogEntry($id: Int!, $input: UpdateLogEntryInput!) {
+    updateLogEntry(id: $id, input: $input) { ${DAY_FIELDS} }
+  }
+`;
+
+const DELETE_LOG_ENTRY = `
+  mutation DeleteLogEntry($id: Int!) {
+    deleteLogEntry(id: $id) { ${DAY_FIELDS} }
+  }
+`;
+
+const RECENT_FOODS = `
+  query {
+    recentFoods { name }
   }
 `;
 
@@ -120,6 +167,10 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     await foodsRepository.delete({ ownerId: userId });
     await foodsRepository.save(BASIC_FOODS.map((food) => ({ ...food, ownerId: userId })));
   };
+
+  // The id of one of the basic foods, e.g. idOf('Egg')
+  const idOf = async (name: string): Promise<number> =>
+    (await foodsRepository.findOneByOrFail({ ownerId: userId, name })).id;
 
   const foodNames = async (): Promise<string[]> => {
     const res = await gql(FOODS).expect(200);
@@ -373,6 +424,206 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, name: 'Egg' } }).expect(200);
 
       expect(res.body.errors[0].message).toBe('You already have a food called "Egg"');
+    });
+  });
+
+  describe('updateFood', () => {
+    beforeEach(resetFoods);
+
+    it('changes only what is sent', async () => {
+      const res = await gql(UPDATE_FOOD, { id: await idOf('Egg'), input: { kcalPerServing: 78, proteinG: 6.3 } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.updateFood).toMatchObject({ name: 'Egg', servingUnit: 'large', kcalPerServing: 78, proteinG: 6.3 });
+    });
+
+    it('can clear the serving size and unit', async () => {
+      const res = await gql(UPDATE_FOOD, { id: await idOf('Egg'), input: { servingSize: null, servingUnit: null } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.updateFood).toMatchObject({ servingSize: null, servingUnit: null });
+    });
+
+    it("can keep its own name, but not take another food's", async () => {
+      const id = await idOf('Egg');
+
+      const same = await gql(UPDATE_FOOD, { id, input: { name: 'Egg' } }).expect(200);
+      expect(same.body.errors).toBeUndefined();
+
+      const taken = await gql(UPDATE_FOOD, { id, input: { name: 'Banana' } }).expect(200);
+      expect(taken.body.errors[0].message).toBe('You already have a food called "Banana"');
+    });
+
+    it('refuses to empty the name or calories', async () => {
+      const res = await gql(UPDATE_FOOD, { id: await idOf('Egg'), input: { name: null } }).expect(200);
+
+      expect(res.body.errors[0].message).toBe('Name and calories cannot be empty');
+    });
+
+    it('says which food was not found', async () => {
+      const res = await gql(UPDATE_FOOD, { id: 999999, input: { kcalPerServing: 1 } }).expect(200);
+
+      expect(res.body.errors[0].message).toBe('Food 999999 not found');
+    });
+  });
+
+  describe('daily log', () => {
+    const YESTERDAY = addDays(TODAY, -1);
+
+    // Every test starts with the basic foods and the 2,161 kcal profile (see PROFILE_INPUT)
+    beforeEach(async () => {
+      await resetFoods();
+      await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
+    });
+
+    const addEntry = async (input: Record<string, unknown>) => {
+      const res = await gql(ADD_LOG_ENTRY, { input }).expect(200);
+      expect(res.body.errors).toBeUndefined();
+      return res.body.data.addLogEntry;
+    };
+
+    it('needs a profile first (the target comes from it)', async () => {
+      await profilesRepository.clear();
+
+      const res = await gql(DAILY_LOG).expect(200);
+
+      expect(res.body.errors[0].message).toBe('Set up your profile first');
+    });
+
+    it("today starts empty, with today's date and the full target left", async () => {
+      const res = await gql(DAILY_LOG).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.dailyLog).toEqual({
+        date: TODAY,
+        targetKcal: 2161,
+        eatenKcal: 0,
+        remainingKcal: 2161,
+        proteinG: null,
+        carbsG: null,
+        fatG: null,
+        entries: [],
+      });
+    });
+
+    it('adds a food, copying its details, and returns the new totals', async () => {
+      const day = await addEntry({ foodId: await idOf('Egg'), quantity: 2 });
+
+      expect(day.entries).toEqual([
+        expect.objectContaining({ name: 'Egg', servingSize: 1, servingUnit: 'large', kcalPerServing: 72, quantity: 2, kcal: 144 }),
+      ]);
+      expect(day.eatenKcal).toBe(144);
+      expect(day.remainingKcal).toBe(2161 - 144);
+    });
+
+    it('rounds each entry to whole calories, and the total adds up the rounded rows', async () => {
+      // 1.5 × 105 = 157.5 → 158, twice = 316
+      await addEntry({ foodId: await idOf('Banana'), quantity: 1.5 });
+      const day = await addEntry({ foodId: await idOf('Banana'), quantity: 1.5 });
+
+      expect(day.entries.map((e: { kcal: number }) => e.kcal)).toEqual([158, 158]);
+      expect(day.eatenKcal).toBe(316);
+    });
+
+    it('goes negative when over target', async () => {
+      const res = await gql(QUICK_ADD, { input: { kcal: 2500 } }).expect(200);
+
+      expect(res.body.data.quickAdd.remainingKcal).toBe(2161 - 2500);
+    });
+
+    it('quick add logs calories without a library food', async () => {
+      const unnamed = await gql(QUICK_ADD, { input: { kcal: 650 } }).expect(200);
+      const named = await gql(QUICK_ADD, { input: { name: '  Hawker dinner  ', kcal: 400 } }).expect(200);
+
+      expect(unnamed.body.errors).toBeUndefined();
+      expect(named.body.data.quickAdd.entries).toEqual([
+        expect.objectContaining({ name: 'Quick add', foodId: null, servingSize: null, quantity: 1, kcal: 650 }),
+        expect.objectContaining({ name: 'Hawker dinner', kcal: 400 }),
+      ]);
+      expect(named.body.data.quickAdd.eatenKcal).toBe(1050);
+    });
+
+    it('changes the quantity of an entry', async () => {
+      const day = await addEntry({ foodId: await idOf('Egg'), quantity: 1 });
+
+      const res = await gql(UPDATE_LOG_ENTRY, { id: day.entries[0].id, input: { quantity: 3 } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.updateLogEntry.eatenKcal).toBe(216);
+    });
+
+    it('removes an entry', async () => {
+      const day = await addEntry({ foodId: await idOf('Egg'), quantity: 1 });
+
+      const res = await gql(DELETE_LOG_ENTRY, { id: day.entries[0].id }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.deleteLogEntry.entries).toEqual([]);
+      expect(res.body.data.deleteLogEntry.eatenKcal).toBe(0);
+    });
+
+    it('logs to yesterday without touching today', async () => {
+      const day = await addEntry({ foodId: await idOf('Egg'), quantity: 1, date: YESTERDAY });
+
+      expect(day.date).toBe(YESTERDAY);
+      const today = await gql(DAILY_LOG).expect(200);
+      expect(today.body.data.dailyLog.eatenKcal).toBe(0);
+    });
+
+    it('refuses a day in the future, and a date that does not exist', async () => {
+      const future = await gql(ADD_LOG_ENTRY, { input: { foodId: await idOf('Egg'), quantity: 1, date: addDays(TODAY, 1) } }).expect(200);
+      const notReal = await gql(DAILY_LOG, { date: '2026-02-30' }).expect(200);
+
+      expect(future.body.errors[0].message).toBe("You can't log a day in the future");
+      expect(notReal.body.errors[0].message).toBe('date must be a real date in YYYY-MM-DD format');
+    });
+
+    it('editing the food later does not change what was logged', async () => {
+      const egg = await idOf('Egg');
+      await addEntry({ foodId: egg, quantity: 1 });
+
+      await gql(UPDATE_FOOD, { id: egg, input: { kcalPerServing: 90 } }).expect(200);
+
+      const day = (await gql(DAILY_LOG).expect(200)).body.data.dailyLog;
+      expect(day.entries[0].kcalPerServing).toBe(72);
+    });
+
+    it('adds up macros from the entries that have them, null when none do', async () => {
+      const egg = await idOf('Egg');
+      await gql(UPDATE_FOOD, { id: egg, input: { proteinG: 6.3 } }).expect(200);
+
+      await addEntry({ foodId: egg, quantity: 2 });
+      const day = await addEntry({ foodId: await idOf('Apple'), quantity: 1 }); // no macros known
+
+      expect(day.proteinG).toBe(12.6);
+      expect(day.fatG).toBeNull();
+    });
+
+    it('recent foods: newest first, each food once, deleted foods left out', async () => {
+      await addEntry({ foodId: await idOf('Egg'), quantity: 1 });
+      await addEntry({ foodId: await idOf('Banana'), quantity: 1 });
+      await addEntry({ foodId: await idOf('Egg'), quantity: 1 });
+      await addEntry({ foodId: await idOf('Apple'), quantity: 1 });
+      await gql(QUICK_ADD, { input: { kcal: 100 } }).expect(200); // not a library food: never "recent"
+      await gql(DELETE_FOOD, { id: await idOf('Apple') }).expect(200);
+
+      const res = await gql(RECENT_FOODS).expect(200);
+
+      expect(res.body.data.recentFoods.map((f: { name: string }) => f.name)).toEqual(['Egg', 'Banana']);
+    });
+
+    it('says which entry or food was not found', async () => {
+      const entry = await gql(DELETE_LOG_ENTRY, { id: 999999 }).expect(200);
+      const food = await gql(ADD_LOG_ENTRY, { input: { foodId: 999999, quantity: 1 } }).expect(200);
+
+      expect(entry.body.errors[0].message).toBe('Entry 999999 not found');
+      expect(food.body.errors[0].message).toBe('Food 999999 not found');
+    });
+
+    it('rejects a quantity of 0', async () => {
+      const res = await gql(ADD_LOG_ENTRY, { input: { foodId: await idOf('Egg'), quantity: 0 } }).expect(200);
+
+      expect(res.body.errors[0].extensions.originalError.message).toContain('quantity must be a positive number');
     });
   });
 });
