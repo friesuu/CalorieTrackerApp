@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getWeek } from '../api';
+import { useNewDay } from '../useNewDay';
 import { addDays, dayLabel, weekRange } from '../dates';
 import { formatKcal } from '../numbers';
 import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
@@ -55,6 +56,9 @@ function History({ onOpenDay })
     useEffect(() => {
         loadWeek();
     }, [loadWeek]);
+
+    // While showing the last 7 days: after midnight, the week moves on by a day
+    useNewDay(loadWeek, endDate === null);
 
     const goToWeek = (end) => {
         setWeek(null);

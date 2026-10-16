@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { getDailyLog, getRecentFoods, addLogEntry, quickAdd, updateLogEntry, deleteLogEntry } from '../api';
-import { addDays, dayLabel, longDate } from '../dates';
+import { addDays, dayLabel, longDate, shortDate } from '../dates';
 import { useMediaQuery } from '../useMediaQuery';
+import { useNewDay } from '../useNewDay';
 import { entryToAddTo } from '../logMatching';
 import DaySummary from './DaySummary';
 import LogEntryRow from './LogEntryRow';
@@ -80,16 +81,9 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
         loadRecent();
     }, []);
 
-    // A new day starts at midnight. Coming back to the app (phone unlocked, tab reopened) reloads
-    // "today", so after midnight it shows the new, empty day. Past days are kept, never wiped.
-    useEffect(() => {
-        if (selectedDate !== null) return;
-        const handleVisible = () => {
-            if (document.visibilityState === 'visible') loadDay();
-        };
-        document.addEventListener('visibilitychange', handleVisible);
-        return () => document.removeEventListener('visibilitychange', handleVisible);
-    }, [selectedDate, loadDay]);
+    // A new day starts at midnight: while showing today, reload when the day may have changed,
+    // so after midnight it shows the new, empty day. Past days are kept, never wiped.
+    useNewDay(loadDay, selectedDate === null);
 
     const goToDate = (date) => {
         setDay(null); // shows "Loading…" instead of the old day's numbers
@@ -266,11 +260,14 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
         <DragDropContext onDragStart={() => setIsDragging(true)} onDragEnd={handleDragEnd}>
             <div className={isLaptop ? 'today-layout' : 'today-stack'}>
                 <div className="today-main">
-                    {/* The title says which day is on screen; the arrows move a day at a time */}
+                    {/* The title says which day is on screen; the arrows move a day at a time.
+                        The date under it only when the title doesn't already show it ("Today", "Yesterday"),
+                        and short for yesterday, so it fits beside the Today button on a phone. */}
                     <header className="page-header day-header">
                         <div>
                             <h1>{label}</h1>
-                            {day && <p className="muted">{longDate(day.date)}</p>}
+                            {day && label === 'Today' && <p className="muted">{longDate(day.date)}</p>}
+                            {day && label === 'Yesterday' && <p className="muted">{shortDate(day.date)}</p>}
                         </div>
                         <div className="day-arrows">
                             {!isToday && day && (

@@ -30,12 +30,18 @@ function formatDate(date, options)
     return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { ...options, timeZone: 'UTC' });
 }
 
+// "Tue 13 Oct"
+export function shortDate(date)
+{
+    return formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 // Short name for a day: "Today", "Yesterday", or "Tue 13 Oct"
 export function dayLabel(date, today)
 {
     if (date === today) return 'Today';
     if (date === addDays(today, -1)) return 'Yesterday';
-    return formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' });
+    return shortDate(date);
 }
 
 // "Thursday 15 October"
