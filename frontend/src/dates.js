@@ -43,3 +43,11 @@ export function longDate(date)
 {
     return formatDate(date, { weekday: 'long', day: 'numeric', month: 'long' });
 }
+
+// A week's dates as a short range: "9 – 15 Oct", or "28 Sep – 4 Oct" across two months
+export function weekRange(start, end)
+{
+    const sameMonth = start.slice(0, 7) === end.slice(0, 7);
+    const from = formatDate(start, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' });
+    return `${from} – ${formatDate(end, { day: 'numeric', month: 'short' })}`;
+}

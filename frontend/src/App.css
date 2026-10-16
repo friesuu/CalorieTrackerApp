@@ -835,6 +835,86 @@ fieldset[aria-invalid='true'] .options {
   list-style: none;
 }
 
+/* ---------- History: weekly average, then one row per day ---------- */
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px; /* a day's bar wider than this is harder to read, not easier */
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.week-label {
+  font-weight: 500;
+}
+
+/* Day | kcal on the first line, bar | status on the second */
+.history-row {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  /* A fixed right column (fits "2,300 / 1,947 kcal"), so every day's bar is the same length */
+  grid-template-columns: minmax(0, 1fr) 9.5rem;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 16px;
+}
+
+.history-day {
+  font-weight: 500;
+}
+
+.history-kcal {
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.history-kcal strong {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* A thin track with a fill: how much of that day's target was eaten (full, in --over, when over) */
+.meter {
+  height: 6px;
+  border-radius: 999px;
+  background-color: var(--border);
+  overflow: hidden;
+}
+
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background-color: var(--accent);
+}
+
+.meter-fill.over {
+  background-color: var(--over);
+}
+
+.history-status {
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.history-status.over {
+  color: var(--over);
+  font-weight: 500;
+}
+
 /* ---------- Loading and "can't connect" screens ---------- */
 
 .status-screen {

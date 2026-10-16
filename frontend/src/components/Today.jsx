@@ -45,11 +45,13 @@ function RemoveButton({ onRemove })
 // The daily log: what's left today, what you ate, and adding more.
 // Its data (the day) lives here, not in App: no other page needs it.
 // foods (the library) comes from App, because the Foods page uses the same list.
-function Today({ foods, foodsError, onRetryFoods })
+// initialDate / initialToday: set when a day is opened from the History page
+function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialToday = null })
 {
     const isLaptop = useMediaQuery('(min-width: 1024px)'); // laptop: the library sits beside the log
-    const [selectedDate, setSelectedDate] = useState(null); // null = today (the server says which day that is)
-    const [today, setToday] = useState(null); // 'YYYY-MM-DD', learnt from the first load
+    // null = today (the server says which day that is)
+    const [selectedDate, setSelectedDate] = useState(initialDate && initialDate !== initialToday ? initialDate : null);
+    const [today, setToday] = useState(initialToday); // 'YYYY-MM-DD', learnt from the first load of today
     const [day, setDay] = useState(null); // the day on screen; null while loading
     const [loadError, setLoadError] = useState(null);
     const [recent, setRecent] = useState(null);

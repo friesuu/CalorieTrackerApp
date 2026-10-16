@@ -91,6 +91,15 @@ const DELETE_LOG_ENTRY = `
   }
 `;
 
+const WEEK = `
+  query Week($endDate: String) {
+    week(endDate: $endDate) {
+      startDate endDate loggedDays averageKcal averageTargetKcal
+      days { date eatenKcal targetKcal logged }
+    }
+  }
+`;
+
 const RECENT_FOODS = `
   query {
     recentFoods { name }
@@ -624,6 +633,87 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       const res = await gql(ADD_LOG_ENTRY, { input: { foodId: await idOf('Egg'), quantity: 0 } }).expect(200);
 
       expect(res.body.errors[0].extensions.originalError.message).toContain('quantity must be a positive number');
+    });
+  });
+
+  describe('week', () => {
+    // The basic foods and the 2,161 kcal profile, like the daily log tests
+    beforeEach(async () => {
+      await resetFoods();
+      await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
+    });
+
+    const quickAddOn = async (date: string, kcal: number) => {
+      const res = await gql(QUICK_ADD, { input: { kcal, date } }).expect(200);
+      expect(res.body.errors).toBeUndefined();
+      return res.body.data.quickAdd;
+    };
+
+    it('is the 7 days ending today, oldest first, all "not logged" at first', async () => {
+      const res = await gql(WEEK).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      const week = res.body.data.week;
+      expect(week.startDate).toBe(addDays(TODAY, -6));
+      expect(week.endDate).toBe(TODAY);
+      expect(week.days.map((d: { date: string }) => d.date)).toEqual([6, 5, 4, 3, 2, 1, 0].map((n) => addDays(TODAY, -n)));
+      expect(week.days.every((d: { logged: boolean }) => !d.logged)).toBe(true);
+      expect(week.loggedDays).toBe(0);
+      expect(week.averageKcal).toBeNull();
+    });
+
+    it("shows each logged day's total against that day's target", async () => {
+      await quickAddOn(TODAY, 1800);
+      await quickAddOn(TODAY, 300);
+      await quickAddOn(addDays(TODAY, -2), 1500);
+
+      const week = (await gql(WEEK).expect(200)).body.data.week;
+
+      expect(week.days[6]).toEqual({ date: TODAY, eatenKcal: 2100, targetKcal: 2161, logged: true });
+      expect(week.days[4]).toEqual({ date: addDays(TODAY, -2), eatenKcal: 1500, targetKcal: 2161, logged: true });
+      expect(week.days[5]).toEqual({ date: addDays(TODAY, -1), eatenKcal: 0, targetKcal: null, logged: false });
+    });
+
+    it('averages only the days that were logged', async () => {
+      await quickAddOn(TODAY, 2000);
+      await quickAddOn(addDays(TODAY, -3), 1500);
+
+      const week = (await gql(WEEK).expect(200)).body.data.week;
+
+      expect(week.loggedDays).toBe(2);
+      expect(week.averageKcal).toBe(1750); // (2000 + 1500) / 2, not / 7
+      expect(week.averageTargetKcal).toBe(2161);
+    });
+
+    it('keeps each day at the target it had (changing the goal later does not re-judge it)', async () => {
+      await quickAddOn(addDays(TODAY, -1), 2000); // yesterday: logged with the 2,161 target
+      await gql(SAVE_PROFILE, { input: { ...PROFILE_INPUT, goal: 'MAINTAIN' } }).expect(200); // now 2,711
+      await quickAddOn(TODAY, 2000);
+
+      const week = (await gql(WEEK).expect(200)).body.data.week;
+
+      expect(week.days[5].targetKcal).toBe(2161);
+      expect(week.days[6].targetKcal).toBe(2711);
+      expect(week.averageTargetKcal).toBe(2436); // (2161 + 2711) / 2
+    });
+
+    it('a day whose entries were all removed counts as not logged', async () => {
+      const day = await quickAddOn(TODAY, 500);
+      await gql(DELETE_LOG_ENTRY, { id: day.entries[0].id }).expect(200);
+
+      const week = (await gql(WEEK).expect(200)).body.data.week;
+
+      expect(week.days[6].logged).toBe(false);
+      expect(week.loggedDays).toBe(0);
+    });
+
+    it('can show an earlier week, but not one ending in the future', async () => {
+      const earlier = (await gql(WEEK, { endDate: addDays(TODAY, -7) }).expect(200)).body.data.week;
+      const future = await gql(WEEK, { endDate: addDays(TODAY, 1) }).expect(200);
+
+      expect(earlier.startDate).toBe(addDays(TODAY, -13));
+      expect(earlier.endDate).toBe(addDays(TODAY, -7));
+      expect(future.body.errors[0].message).toBe("You can't log a day in the future");
     });
   });
 });

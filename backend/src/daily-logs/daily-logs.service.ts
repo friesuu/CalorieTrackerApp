@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Not, Repository } from 'typeorm';
+import { Between, In, IsNull, Not, Repository } from 'typeorm';
 import { DailyLog } from './daily-log.entity';
 import { LogEntry } from './log-entry.entity';
 import { AddLogEntryDto } from './add-log-entry.dto';
@@ -9,7 +9,9 @@ import { UpdateLogEntryDto } from './update-log-entry.dto';
 import { Food } from '../foods/food.entity';
 import { User } from '../users/user.entity';
 import { ProfilesService } from '../profiles/profiles.service';
-import { isRealDate, todayIn } from '../common/dates';
+import { Week } from './week.types';
+import { eatenKcal } from './totals';
+import { addDays, isRealDate, todayIn } from '../common/dates';
 
 const RECENT_FOODS = 8;
 
@@ -118,6 +120,42 @@ export class DailyLogsService {
     return ids
       .map((id) => foods.find((food) => food.id === id))
       .filter((food): food is Food => food !== undefined); // back in "newest first" order
+  }
+
+  // The 7 days ending on endDate (default: today), oldest first, for the weekly history.
+  // One query for the whole week, then each of the 7 dates is filled in (days with no row = not logged).
+  async findWeek(user: User, endDate?: string | null): Promise<Week> {
+    const end = this.checkDate(user, endDate);
+    const start = addDays(end, -6);
+
+    const logs = await this.dailyLogsRepository.find({
+      where: { ownerId: user.id, logDate: Between(start, end) },
+      relations: { entries: true },
+    });
+
+    const days = [0, 1, 2, 3, 4, 5, 6].map((offset) => {
+      const date = addDays(start, offset);
+      const log = logs.find((l) => l.logDate === date);
+      return {
+        date,
+        eatenKcal: log ? eatenKcal(log.entries) : 0,
+        targetKcal: log ? log.targetKcal : null,
+        logged: Boolean(log && log.entries.length > 0),
+      };
+    });
+
+    const logged = days.filter((d) => d.logged);
+    const average = (values: number[]) =>
+      values.length === 0 ? null : Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+
+    return {
+      startDate: start,
+      endDate: end,
+      days,
+      loggedDays: logged.length,
+      averageKcal: average(logged.map((d) => d.eatenKcal)),
+      averageTargetKcal: average(logged.map((d) => d.targetKcal as number)),
+    };
   }
 
   // The day to use: today in the user's time zone when no date is given. Never a future day.

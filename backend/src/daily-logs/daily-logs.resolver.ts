@@ -6,6 +6,7 @@ import { AddLogEntryDto } from './add-log-entry.dto';
 import { QuickAddDto } from './quick-add.dto';
 import { UpdateLogEntryDto } from './update-log-entry.dto';
 import { eatenKcal, macroTotal } from './totals';
+import { Week } from './week.types';
 import { Food } from '../foods/food.entity';
 import { SingleUserGuard } from '../auth/single-user.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -24,6 +25,15 @@ export class DailyLogsResolver {
     @CurrentUser() user: User,
   ): Promise<DailyLog> {
     return this.dailyLogsService.findDay(user, date);
+  }
+
+  // The weekly history: the 7 days ending on endDate (left out = today)
+  @Query(() => Week)
+  week(
+    @Args('endDate', { type: () => String, nullable: true }) endDate: string | null,
+    @CurrentUser() user: User,
+  ): Promise<Week> {
+    return this.dailyLogsService.findWeek(user, endDate);
   }
 
   @Query(() => [Food])

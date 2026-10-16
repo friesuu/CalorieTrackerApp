@@ -2,17 +2,12 @@ import './App.css';
 import { useState, useEffect } from 'react';
 import { getProfile, saveProfile, getFoods, createFood, updateFood, deleteFood } from './api';
 import { PAGES } from './pages';
-import { formatKcal } from './numbers';
 import Navigation from './components/Navigation';
 import FirstRun from './components/FirstRun';
 import Profile from './components/Profile';
 import Foods from './components/Foods';
 import Today from './components/Today';
-
-// What the pages that aren't built yet will hold. Each is replaced by the real page in its build step.
-const COMING_SOON = {
-  history: 'Your last 7 days arrive in step 7.',
-};
+import History from './components/History';
 
 function App()
 {
@@ -23,6 +18,8 @@ function App()
   const [foods, setFoods] = useState(null); // the food library, A to Z. null = not loaded yet
   const [foodsError, setFoodsError] = useState(null);
   const hasProfile = Boolean(profile);
+  // A day picked on the History page, to open on Today: { date, today }. null = Today shows today.
+  const [openDay, setOpenDay] = useState(null);
 
   // Once, when the page opens: load the profile (this also checks the server is reachable)
   useEffect(() => {
@@ -79,6 +76,17 @@ function App()
     setFoods((prev) => prev.filter((f) => f.id !== id));
   };
 
+  // The menu always goes to a page's normal start, e.g. Today = today, not a day opened from History
+  const navigate = (page) => {
+    setOpenDay(null);
+    setView(page);
+  };
+
+  const handleOpenDay = (date, today) => {
+    setOpenDay({ date, today });
+    setView('today');
+  };
+
   // Choose the screen. These come after all the hooks above: React needs the same hooks on every render.
   if (profile === undefined)
   {
@@ -107,7 +115,7 @@ function App()
 
   return(
     <div className="app">
-      <Navigation currentView={view} onNavigate={setView} />
+      <Navigation currentView={view} onNavigate={navigate} />
 
       <main className="page">
         {/* Today has its own header, with the day arrows */}
@@ -117,7 +125,19 @@ function App()
           </header>
         )}
 
-        {view === 'today' && <Today foods={foods} foodsError={foodsError} onRetryFoods={retryFoods} />}
+        {/* key: a different day opened from History starts a fresh Today page */}
+        {view === 'today' && (
+          <Today
+            key={openDay ? openDay.date : 'today'}
+            foods={foods}
+            foodsError={foodsError}
+            onRetryFoods={retryFoods}
+            initialDate={openDay?.date}
+            initialToday={openDay?.today}
+          />
+        )}
+
+        {view === 'history' && <History onOpenDay={handleOpenDay} />}
 
         {view === 'profile' && <Profile profile={profile} onSave={handleSaveProfile} />}
 
@@ -132,12 +152,6 @@ function App()
           />
         )}
 
-        {COMING_SOON[view] && (
-          <section className="card empty-state">
-            <p>Your daily target is <strong className="num">{formatKcal(profile.target.targetKcal)} kcal</strong>.</p>
-            <p className="muted">{COMING_SOON[view]}</p>
-          </section>
-        )}
       </main>
     </div>
   );

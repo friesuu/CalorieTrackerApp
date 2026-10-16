@@ -117,6 +117,21 @@ export async function getDailyLog(date)
     return data.dailyLog;
 }
 
+// The weekly history: the 7 days ending on endDate (no endDate = the 7 days ending today)
+export async function getWeek(endDate)
+{
+    const data = await graphqlRequest(
+        `query Week($endDate: String) {
+            week(endDate: $endDate) {
+                startDate endDate loggedDays averageKcal averageTargetKcal
+                days { date eatenKcal targetKcal logged }
+            }
+        }`,
+        { endDate: endDate ?? null },
+    );
+    return data.week;
+}
+
 // The last few different foods you logged, newest first
 export async function getRecentFoods()
 {

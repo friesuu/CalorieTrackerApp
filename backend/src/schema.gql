@@ -88,11 +88,28 @@ type DailyLog {
   fatG: Float
 }
 
+type DaySummary {
+  date: String!
+  eatenKcal: Int!
+  targetKcal: Int
+  logged: Boolean!
+}
+
+type Week {
+  startDate: String!
+  endDate: String!
+  days: [DaySummary!]!
+  loggedDays: Int!
+  averageKcal: Int
+  averageTargetKcal: Int
+}
+
 type Query {
   me: User!
   profile: Profile
   foods: [Food!]!
   dailyLog(date: String): DailyLog!
+  week(endDate: String): Week!
   recentFoods: [Food!]!
 }
 
