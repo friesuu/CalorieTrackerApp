@@ -4,18 +4,9 @@
 
 type User {
   id: Int!
-  timezone: String!
-}
-
-type Food {
-  id: Int!
   name: String!
-  servingSize: Float
-  servingUnit: String
-  kcalPerServing: Int!
-  proteinG: Float
-  carbsG: Float
-  fatG: Float
+  email: String!
+  timezone: String!
 }
 
 type Profile {
@@ -55,6 +46,18 @@ type CalorieTarget {
   minimumKcal: Int!
   targetKcal: Int!
   capped: Boolean!
+}
+
+type Food {
+  id: Int!
+  name: String!
+  servingSize: Float
+  servingUnit: String
+  kcalPerServing: Int!
+  proteinG: Float
+  carbsG: Float
+  fatG: Float
+  shared: Boolean!
 }
 
 type LogEntry {
@@ -105,8 +108,8 @@ type Week {
 }
 
 type Query {
-  me: User!
   profile: Profile
+  me: User!
   foods: [Food!]!
   dailyLog(date: String): DailyLog!
   week(endDate: String): Week!
@@ -115,6 +118,10 @@ type Query {
 
 type Mutation {
   saveProfile(input: ProfileInput!): Profile!
+  register(input: RegisterInput!): User!
+  login(input: LoginInput!): User!
+  logout: Boolean!
+  changePassword(input: ChangePasswordInput!): Boolean!
   createFood(input: CreateFoodInput!): Food!
   updateFood(id: Int!, input: UpdateFoodInput!): Food!
   deleteFood(id: Int!): Boolean!
@@ -131,6 +138,22 @@ input ProfileInput {
   weightKg: Float!
   activityLevel: ActivityLevel!
   goal: Goal!
+}
+
+input RegisterInput {
+  email: String!
+  password: String!
+  name: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input ChangePasswordInput {
+  currentPassword: String!
+  newPassword: String!
 }
 
 input CreateFoodInput {

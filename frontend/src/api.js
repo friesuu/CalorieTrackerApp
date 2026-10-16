@@ -1,5 +1,11 @@
-// Relative URL: Vite passes /graphql on to the API (see vite.config.js)
+// Relative URL: Vite passes /graphql on to the API (see vite.config.js).
+// Same address as the page, so the browser sends the httpOnly login cookie along by itself.
 const GRAPHQL_URL = '/graphql';
+const USER_FIELDS = 'id name email';
+
+// Fired when a request needs a login and finds none (it expired, or a password change logged this
+// device out). App listens for it and goes back to the login screen.
+export const SESSION_EXPIRED_EVENT = 'calorie-tracker:session-expired';
 const PROFILE_FIELDS = `sex birthDate age heightCm weightKg activityLevel goal
   target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }`;
 const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG';
@@ -19,7 +25,9 @@ function getErrorMessage(error)
     return error.message || 'Something went wrong';
 }
 
-async function graphqlRequest(query, variables) {
+// isAuthRequest: logging in, signing up, or asking "who am I?". For those, UNAUTHENTICATED is a normal
+// answer (wrong password, not logged in yet), not an expired session, so it doesn't fire the event.
+async function graphqlRequest(query, variables, { isAuthRequest = false } = {}) {
   let body;
   try
   {
@@ -40,14 +48,73 @@ async function graphqlRequest(query, variables) {
   if (body.errors)
   {
     const err = new Error(getErrorMessage(body.errors[0]));
-    err.code = body.errors[0].extensions?.code;
+    err.code = body.errors[0].extensions?.code; // e.g. 'UNAUTHENTICATED', so callers can tell "not logged in" from other errors
+    if (err.code === 'UNAUTHENTICATED' && !isAuthRequest)
+    {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
     throw err;
   }
   return body.data;
 }
 
-// The profile with its calorie target, or null on first run (nothing set up yet).
-// Also the first request the page makes, so it doubles as "is the server reachable?"
+// ---------- Accounts (the server sets and clears the httpOnly cookie; JavaScript never sees the token) ----------
+
+// The logged-in user, or null if nobody is logged in. Any other error (server down...) is thrown.
+export async function getMe()
+{
+    try
+    {
+        const data = await graphqlRequest(`query { me { ${USER_FIELDS} } }`, undefined, { isAuthRequest: true });
+        return data.me;
+    }
+    catch (err)
+    {
+        if (err.code === 'UNAUTHENTICATED') return null; // simply not logged in
+        throw err; // a real problem: let it show
+    }
+}
+
+export async function login(email, password)
+{
+    const data = await graphqlRequest(
+        `mutation Login($input: LoginInput!) { login(input: $input) { ${USER_FIELDS} } }`,
+        { input: { email, password } },
+        { isAuthRequest: true },
+    );
+    return data.login;
+}
+
+// Signing up also logs you in
+export async function register(name, email, password)
+{
+    const data = await graphqlRequest(
+        `mutation Register($input: RegisterInput!) { register(input: $input) { ${USER_FIELDS} } }`,
+        { input: { name, email, password } },
+        { isAuthRequest: true },
+    );
+    return data.register;
+}
+
+// Only the server can delete the cookie (JavaScript can't, because it's httpOnly)
+export async function logout()
+{
+    await graphqlRequest('mutation { logout }', undefined, { isAuthRequest: true });
+}
+
+// Needs the current password too. The server sends a fresh cookie, so you stay logged in here,
+// while every other device is logged out.
+export async function changePassword(currentPassword, newPassword)
+{
+    await graphqlRequest(
+        `mutation ChangePassword($input: ChangePasswordInput!) { changePassword(input: $input) }`,
+        { input: { currentPassword, newPassword } },
+    );
+}
+
+// ---------- Profile ----------
+
+// The profile with its calorie target, or null on first run (nothing set up yet)
 export async function getProfile()
 {
     const data = await graphqlRequest(`query { profile { ${PROFILE_FIELDS} } }`);

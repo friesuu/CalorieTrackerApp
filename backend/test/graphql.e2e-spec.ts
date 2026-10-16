@@ -1,24 +1,21 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest'; // default import: no braces
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AppModule } from '../src/app.module'; // ../ = go up one folder
 import { setupApp } from '../src/app.setup';
 import { Food } from '../src/foods/food.entity';
-import { BASIC_FOODS } from '../src/foods/basic-foods';
+import { User } from '../src/users/user.entity';
 import { Profile } from '../src/profiles/profile.entity';
 import { DailyLog } from '../src/daily-logs/daily-log.entity';
 import { LogEntry } from '../src/daily-logs/log-entry.entity';
 import { addDays, todayIn } from '../src/common/dates';
 
-// Each operation is written once and reused. $name = a variable sent separately.
-const ME = `
-  query {
-    me { id timezone }
-  }
-`;
+// The shared starter foods (made by the Accounts migration), A to Z
+const STARTER_FOODS = ['Apple', 'Banana', 'Egg', 'Full cream milk', 'White bread', 'White rice, cooked'];
 
+// Each operation is written once and reused. $name = a variable sent separately.
 const PROFILE_FIELDS = `
   sex birthDate age heightCm weightKg activityLevel goal
   target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }
@@ -36,7 +33,7 @@ const SAVE_PROFILE = `
   }
 `;
 
-const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG';
+const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG shared';
 
 const FOODS = `
   query {
@@ -53,6 +50,12 @@ const CREATE_FOOD = `
 const UPDATE_FOOD = `
   mutation UpdateFood($id: Int!, $input: UpdateFoodInput!) {
     updateFood(id: $id, input: $input) { ${FOOD_FIELDS} }
+  }
+`;
+
+const DELETE_FOOD = `
+  mutation DeleteFood($id: Int!) {
+    deleteFood(id: $id)
   }
 `;
 
@@ -106,13 +109,36 @@ const RECENT_FOODS = `
   }
 `;
 
-const DELETE_FOOD = `
-  mutation DeleteFood($id: Int!) {
-    deleteFood(id: $id)
+const ROTI_CANAI = { name: 'Roti canai', servingSize: 1, servingUnit: 'piece', kcalPerServing: 300 };
+
+const REGISTER = `
+  mutation Register($input: RegisterInput!) {
+    register(input: $input) { id name email }
   }
 `;
 
-const ROTI_CANAI = { name: 'Roti canai', servingSize: 1, servingUnit: 'piece', kcalPerServing: 300 };
+const LOGIN = `
+  mutation Login($input: LoginInput!) {
+    login(input: $input) { id name email }
+  }
+`;
+
+const ME = `
+  query {
+    me { id name email }
+  }
+`;
+
+const CHANGE_PASSWORD = `
+  mutation ChangePassword($input: ChangePasswordInput!) {
+    changePassword(input: $input)
+  }
+`;
+
+// The account almost every test runs as, and a second one for the privacy tests.
+// Both are deleted and signed up again at the start of each run.
+const TEST_USER = { name: 'Test User', email: 'e2e@test.com', password: 'e2e-password' };
+const OTHER_USER = { name: 'Other User', email: 'e2e-other@test.com', password: 'e2e-password' };
 
 // Born on 1 January exactly 30 years ago, so the age is 30 whenever the tests run
 const TODAY = todayIn('Asia/Kuala_Lumpur');
@@ -131,11 +157,14 @@ const PROFILE_INPUT = {
 
 describe('Calorie tracker GraphQL API (e2e)', () => {
   let app: INestApplication; // set in beforeAll, used by every test
+  let usersRepository: Repository<User>;
   let foodsRepository: Repository<Food>;
   let profilesRepository: Repository<Profile>;
   let dailyLogsRepository: Repository<DailyLog>;
   let logEntriesRepository: Repository<LogEntry>;
-  let userId: number; // the one user's id, found in beforeAll
+  let userId: number; // TEST_USER's id, found in beforeAll
+  let cookie: string[] = []; // TEST_USER's login cookie, sent with every request by gql()
+  let otherCookie: string[] = []; // OTHER_USER's login cookie, for the privacy tests
 
   // Runs ONCE before all tests: build and start the app, and bring the test database's
   // tables up to date by running the same migrations as the real database
@@ -145,15 +174,21 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    setupApp(app); // same validation as the real app
+    setupApp(app); // same validation and cookies as the real app
     await app.init();
 
     await app.get(DataSource).runMigrations();
+    usersRepository = app.get(getRepositoryToken(User));
     foodsRepository = app.get(getRepositoryToken(Food));
     profilesRepository = app.get(getRepositoryToken(Profile));
     dailyLogsRepository = app.get(getRepositoryToken(DailyLog));
     logEntriesRepository = app.get(getRepositoryToken(LogEntry));
-    userId = (await gql(ME).expect(200)).body.data.me.id; // also makes the user on a fresh test database
+
+    // No "user from before accounts" left over, or the first sign-up below would take it over
+    await usersRepository.delete({ email: IsNull() });
+    cookie = await signUp(TEST_USER);
+    otherCookie = await signUp(OTHER_USER);
+    userId = (await usersRepository.findOneByOrFail({ email: TEST_USER.email })).id;
   });
 
   // Runs before EVERY test: no profile and no logged days, like a first run
@@ -167,19 +202,39 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     await app.close();
   });
 
-  // Every GraphQL call is POST /graphql with { query, variables }
-  const gql = (query: string, variables?: Record<string, unknown>) =>
-    request(app.getHttpServer()).post('/graphql').send({ query, variables });
+  // Every GraphQL call is POST /graphql with { query, variables }, sent as whoever owns the cookie
+  const gqlAs = (who: string[], query: string, variables?: Record<string, unknown>) =>
+    request(app.getHttpServer()).post('/graphql').set('Cookie', who).send({ query, variables });
 
-  // Back to just the basic foods (tests add and delete foods)
-  const resetFoods = async () => {
-    await foodsRepository.delete({ ownerId: userId });
-    await foodsRepository.save(BASIC_FOODS.map((food) => ({ ...food, ownerId: userId })));
+  // As TEST_USER (most tests)
+  const gql = (query: string, variables?: Record<string, unknown>) => gqlAs(cookie, query, variables);
+
+  // The cookie a response sets (supertest types it as one string, but it can be a list)
+  const cookieFrom = (res: { headers: Record<string, unknown> }): string[] => {
+    const setCookie = res.headers['set-cookie'] as string | string[];
+    return Array.isArray(setCookie) ? setCookie : [setCookie];
   };
 
-  // The id of one of the basic foods, e.g. idOf('Egg')
+  // A fresh account: remove the one from the last run (its data goes too: ON DELETE CASCADE),
+  // sign up again, and return the login cookie. Fails loudly here if signing up is broken.
+  const signUp = async (person: { name: string; email: string; password: string }) => {
+    await usersRepository.delete({ email: person.email });
+    const res = await gqlAs([], REGISTER, { input: person }).expect(200);
+    expect(res.body.errors).toBeUndefined();
+    return cookieFrom(res);
+  };
+
+  // Back to no foods of the test user's own (the shared starter foods are always there)
+  const resetFoods = async () => {
+    await foodsRepository.delete({ ownerId: userId });
+  };
+
+  // A food of the test user's own (starter foods can't be edited or deleted, so tests that do that use this)
+  const ownFood = (overrides: Partial<Food> = {}) => foodsRepository.save({ ...ROTI_CANAI, ownerId: userId, ...overrides });
+
+  // The id of a starter food (or one of the user's own), e.g. idOf('Egg')
   const idOf = async (name: string): Promise<number> =>
-    (await foodsRepository.findOneByOrFail({ ownerId: userId, name })).id;
+    (await foodsRepository.findOneOrFail({ where: [{ ownerId: userId, name }, { ownerId: IsNull(), name }] })).id;
 
   const foodNames = async (): Promise<string[]> => {
     const res = await gql(FOODS).expect(200);
@@ -191,28 +246,6 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
   //   rejected by the schema      -> HTTP 400, extensions.code BAD_USER_INPUT
   //   rejected by ValidationPipe  -> HTTP 200, data null, messages in extensions.originalError.message
   //   thrown by the service       -> HTTP 200, data null, message in errors[0].message
-
-  describe('single user', () => {
-    it('me returns the one user, in the Kuala Lumpur time zone', async () => {
-      const res = await gql(ME).expect(200);
-
-      expect(res.body.errors).toBeUndefined();
-      expect(res.body.data.me.timezone).toBe('Asia/Kuala_Lumpur');
-    });
-
-    it('is the same user on every request', async () => {
-      const [a, b] = await Promise.all([gql(ME), gql(ME)]); // arriving together must not make two users
-
-      expect(a.body.data.me.id).toBe(b.body.data.me.id);
-    });
-
-    it('starts with the basic foods in their library', async () => {
-      const me = (await gql(ME).expect(200)).body.data.me;
-      const names = (await foodsRepository.findBy({ ownerId: me.id })).map((f) => f.name);
-
-      expect(names).toEqual(expect.arrayContaining(BASIC_FOODS.map((f) => f.name)));
-    });
-  });
 
   describe('profile', () => {
     it('is null before it has been set up (first run)', async () => {
@@ -246,7 +279,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
 
       expect(res.body.errors).toBeUndefined();
       expect(res.body.data.saveProfile.target.targetKcal).toBe(2711); // no deficit any more
-      expect(await profilesRepository.count()).toBe(1);
+      expect(await profilesRepository.countBy({ userId })).toBe(1);
     });
 
     it('caps the target at the safe minimum and says so', async () => {
@@ -260,16 +293,15 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     it("updates today's target, but not past days'", async () => {
-      const me = (await gql(ME).expect(200)).body.data.me;
       await dailyLogsRepository.save([
-        { ownerId: me.id, logDate: TODAY, targetKcal: 1800 },
-        { ownerId: me.id, logDate: '2026-01-01', targetKcal: 1800 },
+        { ownerId: userId, logDate: TODAY, targetKcal: 1800 },
+        { ownerId: userId, logDate: '2026-01-01', targetKcal: 1800 },
       ]);
 
       await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
 
-      expect((await dailyLogsRepository.findOneByOrFail({ ownerId: me.id, logDate: TODAY })).targetKcal).toBe(2161);
-      expect((await dailyLogsRepository.findOneByOrFail({ ownerId: me.id, logDate: '2026-01-01' })).targetKcal).toBe(1800);
+      expect((await dailyLogsRepository.findOneByOrFail({ ownerId: userId, logDate: TODAY })).targetKcal).toBe(2161);
+      expect((await dailyLogsRepository.findOneByOrFail({ ownerId: userId, logDate: '2026-01-01' })).targetKcal).toBe(1800);
     });
 
     it('rejects anyone under 18', async () => {
@@ -277,7 +309,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       const res = await gql(SAVE_PROFILE, { input: { ...PROFILE_INPUT, birthDate: tenYearsAgo } }).expect(200);
 
       expect(res.body.errors[0].message).toBe('Age must be between 18 and 100');
-      expect(await profilesRepository.count()).toBe(0); // and nothing was saved
+      expect(await profilesRepository.countBy({ userId })).toBe(0); // and nothing was saved
     });
 
     it('rejects a height out of range, with a readable message', async () => {
@@ -296,10 +328,20 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
   describe('foods', () => {
     beforeEach(resetFoods);
 
-    it('lists the library A to Z', async () => {
+    it('everyone sees the shared starter foods, marked as shared', async () => {
+      const res = await gql(FOODS).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      expect(res.body.data.foods.map((f: { name: string }) => f.name)).toEqual(STARTER_FOODS);
+      expect(res.body.data.foods.every((f: { shared: boolean }) => f.shared)).toBe(true);
+    });
+
+    it('lists your own foods with the starter foods, A to Z', async () => {
+      await ownFood();
+
       const names = await foodNames();
 
-      expect(names).toEqual(BASIC_FOODS.map((f) => f.name).sort((a, b) => a.localeCompare(b)));
+      expect(names).toEqual([...STARTER_FOODS, 'Roti canai'].sort((a, b) => a.localeCompare(b)));
     });
 
     it('sends macros as null when they are not known', async () => {
@@ -308,29 +350,40 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       expect(res.body.data.foods[0].proteinG).toBeNull();
     });
 
-    it('deletes a food', async () => {
-      const egg = await foodsRepository.findOneByOrFail({ ownerId: userId, name: 'Egg' });
+    it('deletes one of your own foods', async () => {
+      const roti = await ownFood();
 
-      const res = await gql(DELETE_FOOD, { id: egg.id }).expect(200);
+      const res = await gql(DELETE_FOOD, { id: roti.id }).expect(200);
 
       expect(res.body.errors).toBeUndefined();
       expect(res.body.data.deleteFood).toBe(true);
-      expect(await foodNames()).not.toContain('Egg');
+      expect(await foodNames()).not.toContain('Roti canai');
+    });
+
+    it("starter foods can't be edited or deleted", async () => {
+      const egg = await idOf('Egg');
+
+      const edit = await gql(UPDATE_FOOD, { id: egg, input: { kcalPerServing: 1 } }).expect(200);
+      const remove = await gql(DELETE_FOOD, { id: egg }).expect(200);
+
+      expect(edit.body.errors[0].message).toBe("Starter foods are shared with everyone, so they can't be changed");
+      expect(remove.body.errors[0].message).toBe("Starter foods are shared with everyone, so they can't be changed");
+      expect(await foodNames()).toContain('Egg');
     });
 
     it('deleting a food keeps the days it was logged on', async () => {
-      const egg = await foodsRepository.findOneByOrFail({ ownerId: userId, name: 'Egg' });
+      const roti = await ownFood();
       const day = await dailyLogsRepository.save({ ownerId: userId, logDate: '2026-01-01', targetKcal: 1800 });
       const entry = await logEntriesRepository.save({
-        dailyLogId: day.id, foodId: egg.id, name: 'Egg', servingSize: 1, servingUnit: 'large', kcalPerServing: 72, quantity: 2,
+        dailyLogId: day.id, foodId: roti.id, name: 'Roti canai', servingSize: 1, servingUnit: 'piece', kcalPerServing: 300, quantity: 2,
       });
 
-      await gql(DELETE_FOOD, { id: egg.id }).expect(200);
+      await gql(DELETE_FOOD, { id: roti.id }).expect(200);
 
       const kept = await logEntriesRepository.findOneByOrFail({ id: entry.id });
       expect(kept.foodId).toBeNull(); // no longer linked to the library...
-      expect(kept.name).toBe('Egg'); // ...but still says what you ate
-      expect(kept.kcalPerServing).toBe(72);
+      expect(kept.name).toBe('Roti canai'); // ...but still says what you ate
+      expect(kept.kcalPerServing).toBe(300);
     });
 
     it('says which food was not found', async () => {
@@ -340,15 +393,14 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
   });
 
-  // YOUR TURN (step 4): these pass once createFood works end to end on the backend
   describe('createFood', () => {
     beforeEach(resetFoods);
 
-    it('adds a food to the library', async () => {
+    it('adds a food to your library, not shared', async () => {
       const res = await gql(CREATE_FOOD, { input: ROTI_CANAI }).expect(200);
 
       expect(res.body.errors).toBeUndefined();
-      expect(res.body.data.createFood).toMatchObject({ ...ROTI_CANAI, proteinG: null, carbsG: null, fatG: null });
+      expect(res.body.data.createFood).toMatchObject({ ...ROTI_CANAI, proteinG: null, carbsG: null, fatG: null, shared: false });
       expect(await foodNames()).toContain('Roti canai');
     });
 
@@ -429,10 +481,14 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       expect(res.body.errors[0].extensions.code).toBe('BAD_USER_INPUT');
     });
 
-    it('rejects a name that is already in the library', async () => {
-      const res = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, name: 'Egg' } }).expect(200);
+    it('rejects a name already in your library, or already a starter food', async () => {
+      await ownFood();
 
-      expect(res.body.errors[0].message).toBe('You already have a food called "Egg"');
+      const own = await gql(CREATE_FOOD, { input: ROTI_CANAI }).expect(200);
+      const starter = await gql(CREATE_FOOD, { input: { ...ROTI_CANAI, name: 'Egg' } }).expect(200);
+
+      expect(own.body.errors[0].message).toBe('You already have a food called "Roti canai"');
+      expect(starter.body.errors[0].message).toBe('"Egg" is already one of the starter foods');
     });
   });
 
@@ -440,31 +496,40 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     beforeEach(resetFoods);
 
     it('changes only what is sent', async () => {
-      const res = await gql(UPDATE_FOOD, { id: await idOf('Egg'), input: { kcalPerServing: 78, proteinG: 6.3 } }).expect(200);
+      const roti = await ownFood();
+
+      const res = await gql(UPDATE_FOOD, { id: roti.id, input: { kcalPerServing: 280, proteinG: 6.3 } }).expect(200);
 
       expect(res.body.errors).toBeUndefined();
-      expect(res.body.data.updateFood).toMatchObject({ name: 'Egg', servingUnit: 'large', kcalPerServing: 78, proteinG: 6.3 });
+      expect(res.body.data.updateFood).toMatchObject({ name: 'Roti canai', servingUnit: 'piece', kcalPerServing: 280, proteinG: 6.3 });
     });
 
     it('can clear the serving size and unit', async () => {
-      const res = await gql(UPDATE_FOOD, { id: await idOf('Egg'), input: { servingSize: null, servingUnit: null } }).expect(200);
+      const roti = await ownFood();
+
+      const res = await gql(UPDATE_FOOD, { id: roti.id, input: { servingSize: null, servingUnit: null } }).expect(200);
 
       expect(res.body.errors).toBeUndefined();
       expect(res.body.data.updateFood).toMatchObject({ servingSize: null, servingUnit: null });
     });
 
     it("can keep its own name, but not take another food's", async () => {
-      const id = await idOf('Egg');
+      const roti = await ownFood();
+      await ownFood({ name: 'Teh tarik' });
 
-      const same = await gql(UPDATE_FOOD, { id, input: { name: 'Egg' } }).expect(200);
+      const same = await gql(UPDATE_FOOD, { id: roti.id, input: { name: 'Roti canai' } }).expect(200);
+      const own = await gql(UPDATE_FOOD, { id: roti.id, input: { name: 'Teh tarik' } }).expect(200);
+      const starter = await gql(UPDATE_FOOD, { id: roti.id, input: { name: 'Banana' } }).expect(200);
+
       expect(same.body.errors).toBeUndefined();
-
-      const taken = await gql(UPDATE_FOOD, { id, input: { name: 'Banana' } }).expect(200);
-      expect(taken.body.errors[0].message).toBe('You already have a food called "Banana"');
+      expect(own.body.errors[0].message).toBe('You already have a food called "Teh tarik"');
+      expect(starter.body.errors[0].message).toBe('"Banana" is already one of the starter foods');
     });
 
     it('refuses to empty the name or calories', async () => {
-      const res = await gql(UPDATE_FOOD, { id: await idOf('Egg'), input: { name: null } }).expect(200);
+      const roti = await ownFood();
+
+      const res = await gql(UPDATE_FOOD, { id: roti.id, input: { name: null } }).expect(200);
 
       expect(res.body.errors[0].message).toBe('Name and calories cannot be empty');
     });
@@ -479,7 +544,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
   describe('daily log', () => {
     const YESTERDAY = addDays(TODAY, -1);
 
-    // Every test starts with the basic foods and the 2,161 kcal profile (see PROFILE_INPUT)
+    // Every test starts with no foods of the user's own and the 2,161 kcal profile (see PROFILE_INPUT)
     beforeEach(async () => {
       await resetFoods();
       await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
@@ -515,7 +580,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       });
     });
 
-    it('adds a food, copying its details, and returns the new totals', async () => {
+    it('logs a starter food, copying its details, and returns the new totals', async () => {
       const day = await addEntry({ foodId: await idOf('Egg'), quantity: 2 });
 
       expect(day.entries).toEqual([
@@ -544,14 +609,14 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     it("but a new row if the food's details changed since it was logged", async () => {
-      const egg = await idOf('Egg');
-      await addEntry({ foodId: egg, quantity: 1 });
-      await gql(UPDATE_FOOD, { id: egg, input: { kcalPerServing: 90 } }).expect(200);
+      const roti = await ownFood();
+      await addEntry({ foodId: roti.id, quantity: 1 });
+      await gql(UPDATE_FOOD, { id: roti.id, input: { kcalPerServing: 280 } }).expect(200);
 
-      const day = await addEntry({ foodId: egg, quantity: 1 });
+      const day = await addEntry({ foodId: roti.id, quantity: 1 });
 
-      // the first egg keeps the 72 kcal it was logged with
-      expect(day.entries.map((e: { kcalPerServing: number }) => e.kcalPerServing)).toEqual([72, 90]);
+      // the first roti keeps the 300 kcal it was logged with
+      expect(day.entries.map((e: { kcalPerServing: number }) => e.kcalPerServing)).toEqual([300, 280]);
     });
 
     it('a new row on a different day, and quick adds never merge', async () => {
@@ -619,20 +684,19 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     it('editing the food later does not change what was logged', async () => {
-      const egg = await idOf('Egg');
-      await addEntry({ foodId: egg, quantity: 1 });
+      const roti = await ownFood();
+      await addEntry({ foodId: roti.id, quantity: 1 });
 
-      await gql(UPDATE_FOOD, { id: egg, input: { kcalPerServing: 90 } }).expect(200);
+      await gql(UPDATE_FOOD, { id: roti.id, input: { kcalPerServing: 280 } }).expect(200);
 
       const day = (await gql(DAILY_LOG).expect(200)).body.data.dailyLog;
-      expect(day.entries[0].kcalPerServing).toBe(72);
+      expect(day.entries[0].kcalPerServing).toBe(300);
     });
 
     it('adds up macros from the entries that have them, null when none do', async () => {
-      const egg = await idOf('Egg');
-      await gql(UPDATE_FOOD, { id: egg, input: { proteinG: 6.3 } }).expect(200);
+      const eggWithProtein = await ownFood({ name: 'Boiled egg', servingUnit: 'large', kcalPerServing: 78, proteinG: 6.3 });
 
-      await addEntry({ foodId: egg, quantity: 2 });
+      await addEntry({ foodId: eggWithProtein.id, quantity: 2 });
       const day = await addEntry({ foodId: await idOf('Apple'), quantity: 1 }); // no macros known
 
       expect(day.proteinG).toBe(12.6);
@@ -640,12 +704,13 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     it('recent foods: newest first, each food once, deleted foods left out', async () => {
+      const roti = await ownFood();
       await addEntry({ foodId: await idOf('Egg'), quantity: 1 });
       await addEntry({ foodId: await idOf('Banana'), quantity: 1 });
       await addEntry({ foodId: await idOf('Egg'), quantity: 1 });
-      await addEntry({ foodId: await idOf('Apple'), quantity: 1 });
+      await addEntry({ foodId: roti.id, quantity: 1 });
       await gql(QUICK_ADD, { input: { kcal: 100 } }).expect(200); // not a library food: never "recent"
-      await gql(DELETE_FOOD, { id: await idOf('Apple') }).expect(200);
+      await gql(DELETE_FOOD, { id: roti.id }).expect(200);
 
       const res = await gql(RECENT_FOODS).expect(200);
 
@@ -668,7 +733,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
   });
 
   describe('week', () => {
-    // The basic foods and the 2,161 kcal profile, like the daily log tests
+    // The 2,161 kcal profile, like the daily log tests
     beforeEach(async () => {
       await resetFoods();
       await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
@@ -745,6 +810,239 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       expect(earlier.startDate).toBe(addDays(TODAY, -13));
       expect(earlier.endDate).toBe(addDays(TODAY, -7));
       expect(future.body.errors[0].message).toBe("You can't log a day in the future");
+    });
+  });
+
+  describe('privacy', () => {
+    beforeEach(async () => {
+      await resetFoods();
+      await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
+    });
+
+    it('logged out, every query and change is refused, and nothing is saved', async () => {
+      const operations: [string, Record<string, unknown>?][] = [
+        [PROFILE],
+        [SAVE_PROFILE, { input: PROFILE_INPUT }],
+        [FOODS],
+        [CREATE_FOOD, { input: ROTI_CANAI }],
+        [DAILY_LOG],
+        [QUICK_ADD, { input: { kcal: 100 } }],
+        [WEEK],
+        [RECENT_FOODS],
+        [ME],
+      ];
+
+      for (const [query, variables] of operations) {
+        const res = await gqlAs([], query, variables).expect(200);
+        expect(res.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
+      }
+      expect(await foodsRepository.countBy({ ownerId: userId })).toBe(0);
+    });
+
+    it("another user can't see, change, delete or log your foods", async () => {
+      const roti = await ownFood();
+
+      const list = await gqlAs(otherCookie, FOODS).expect(200);
+      const edit = await gqlAs(otherCookie, UPDATE_FOOD, { id: roti.id, input: { kcalPerServing: 1 } }).expect(200);
+      const remove = await gqlAs(otherCookie, DELETE_FOOD, { id: roti.id }).expect(200);
+      const log = await gqlAs(otherCookie, ADD_LOG_ENTRY, { input: { foodId: roti.id, quantity: 1 } }).expect(200);
+
+      expect(list.body.data.foods.map((f: { name: string }) => f.name)).not.toContain('Roti canai');
+      // "not found", the same as a wrong id: it doesn't even say the food exists
+      for (const res of [edit, remove, log]) {
+        expect(res.body.errors[0].message).toBe(`Food ${roti.id} not found`);
+      }
+      expect((await foodsRepository.findOneByOrFail({ id: roti.id })).kcalPerServing).toBe(300); // unchanged
+    });
+
+    it("another user can't see, change or remove your log entries", async () => {
+      const day = (await gql(ADD_LOG_ENTRY, { input: { foodId: await idOf('Egg'), quantity: 2 } }).expect(200)).body.data.addLogEntry;
+      const entryId = day.entries[0].id;
+      await gqlAs(otherCookie, SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
+
+      const theirDay = await gqlAs(otherCookie, DAILY_LOG).expect(200);
+      const edit = await gqlAs(otherCookie, UPDATE_LOG_ENTRY, { id: entryId, input: { quantity: 9 } }).expect(200);
+      const remove = await gqlAs(otherCookie, DELETE_LOG_ENTRY, { id: entryId }).expect(200);
+
+      expect(theirDay.body.data.dailyLog.entries).toEqual([]);
+      expect(edit.body.errors[0].message).toBe(`Entry ${entryId} not found`);
+      expect(remove.body.errors[0].message).toBe(`Entry ${entryId} not found`);
+      expect((await logEntriesRepository.findOneByOrFail({ id: entryId })).quantity).toBe(2); // unchanged
+    });
+
+    it('each user has their own profile and history', async () => {
+      await gql(QUICK_ADD, { input: { kcal: 500 } }).expect(200);
+      await profilesRepository.delete({ userId: (await usersRepository.findOneByOrFail({ email: OTHER_USER.email })).id });
+
+      const theirProfile = await gqlAs(otherCookie, PROFILE).expect(200);
+      expect(theirProfile.body.data.profile).toBeNull(); // TEST_USER has one; OTHER_USER doesn't
+
+      await gqlAs(otherCookie, SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
+      const theirWeek = await gqlAs(otherCookie, WEEK).expect(200);
+      expect(theirWeek.body.data.week.loggedDays).toBe(0); // TEST_USER's 500 kcal isn't theirs
+    });
+
+    it('both users see the same shared starter foods', async () => {
+      const mine = await gql(FOODS).expect(200);
+      const theirs = await gqlAs(otherCookie, FOODS).expect(200);
+
+      expect(mine.body.data.foods.map((f: { id: number }) => f.id)).toEqual(theirs.body.data.foods.map((f: { id: number }) => f.id));
+    });
+  });
+
+  // Last in the file on purpose: each test starts by deleting every user (and so all their data).
+  describe('accounts', () => {
+    // A different person per test, so one test's wrong passwords can't lock another test out
+    const person = (n: number) => ({ name: `Person ${n}`, email: `person${n}@test.com`, password: `password-${n}-long` });
+
+    const register = async (input: { name: string; email: string; password: string }) => {
+      const res = await gqlAs([], REGISTER, { input }).expect(200);
+      expect(res.body.errors).toBeUndefined();
+      return { user: res.body.data.register, cookie: cookieFrom(res) };
+    };
+
+    // Only email and password: LoginInput has no name, and GraphQL refuses fields it doesn't know
+    const login = ({ email, password }: { email: string; password: string }) =>
+      gqlAs([], LOGIN, { input: { email, password } }).expect(200);
+
+    // No users at all, so no "user from before accounts" for a sign-up to take over by accident
+    beforeEach(async () => {
+      await usersRepository.createQueryBuilder().delete().execute();
+    });
+
+    it('signing up makes an account and logs you in, with a 30-day httpOnly cookie', async () => {
+      const { user, cookie: session } = await register({ ...person(1), email: '  Person1@Test.com ' });
+
+      expect(user).toMatchObject({ name: 'Person 1', email: 'person1@test.com' }); // trimmed, lower case
+      const setCookie = session.join('; ');
+      expect(setCookie).toContain('token=');
+      expect(setCookie).toContain('HttpOnly'); // JavaScript in the page can't read it
+      expect(setCookie).toContain('SameSite=Lax'); // not sent along on requests from other sites
+      expect(setCookie).toContain('Max-Age=2592000'); // 30 days, in seconds
+
+      const me = await gqlAs(session, ME).expect(200);
+      expect(me.body.data.me).toEqual(user);
+    });
+
+    it('stores the password only as an argon2 hash, and never sends it', async () => {
+      const { user } = await register(person(2));
+
+      const saved = await usersRepository.findOneByOrFail({ id: user.id });
+      expect(saved.passwordHash).toMatch(/^\$argon2/);
+      expect(saved.passwordHash).not.toContain(person(2).password);
+
+      const asked = await gqlAs([], `query { me { passwordHash } }`).expect(400); // not even in the schema
+      expect(asked.body.errors[0].extensions.code).toBe('GRAPHQL_VALIDATION_FAILED');
+    });
+
+    it('refuses an email that is already used, whatever its capitals', async () => {
+      await register(person(3));
+
+      const res = await gqlAs([], REGISTER, { input: { ...person(3), email: 'PERSON3@test.com' } }).expect(200);
+
+      expect(res.body.errors[0].message).toBe('Email is already registered');
+    });
+
+    it('refuses a short password, a bad email and an empty name', async () => {
+      const short = await gqlAs([], REGISTER, { input: { ...person(4), password: 'short' } }).expect(200);
+      const badEmail = await gqlAs([], REGISTER, { input: { ...person(4), email: 'not-an-email' } }).expect(200);
+      const noName = await gqlAs([], REGISTER, { input: { ...person(4), name: '   ' } }).expect(200);
+
+      expect(short.body.errors).toBeDefined();
+      expect(badEmail.body.errors).toBeDefined();
+      expect(noName.body.errors).toBeDefined();
+      expect(await usersRepository.count()).toBe(0); // and nothing was saved
+    });
+
+    it('logs in with the right password', async () => {
+      const { user } = await register(person(5));
+
+      const res = await login(person(5));
+
+      expect(res.body.errors).toBeUndefined();
+      const me = await gqlAs(cookieFrom(res), ME).expect(200);
+      expect(me.body.data.me.id).toBe(user.id);
+    });
+
+    it('a wrong password and an unknown email get the same message', async () => {
+      await register(person(6));
+
+      const wrongPassword = await login({ email: person(6).email, password: 'not-my-password' });
+      const unknownEmail = await login({ email: 'nobody@test.com', password: 'whatever-it-is' });
+
+      // The same words, so the message never says whether an email has an account
+      expect(wrongPassword.body.errors[0].message).toBe('Invalid email or password');
+      expect(unknownEmail.body.errors[0].message).toBe('Invalid email or password');
+    });
+
+    it('after 3 wrong passwords, even the right one is refused for a minute', async () => {
+      await register(person(7));
+      for (let i = 0; i < 3; i++) {
+        await login({ email: person(7).email, password: 'wrong-password' });
+      }
+
+      const res = await login(person(7)); // the RIGHT password, but too soon
+
+      expect(res.body.errors[0].message).toBe('Too many wrong passwords. Try again in a minute.');
+    });
+
+    it('me needs a valid login cookie', async () => {
+      const none = await gqlAs([], ME).expect(200);
+      const madeUp = await gqlAs(['token=not-a-real-token'], ME).expect(200);
+
+      expect(none.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
+      expect(madeUp.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
+    });
+
+    // supertest isn't a browser and won't delete the cookie itself, so we check the instruction the
+    // server sends: "token is now empty and expired in 1970" (same check as the task board)
+    it('logout tells the browser to delete the cookie', async () => {
+      const { cookie: session } = await register(person(8));
+
+      const res = await gqlAs(session, `mutation { logout }`).expect(200);
+
+      expect(res.body.data.logout).toBe(true);
+      const setCookie = String(res.headers['set-cookie']);
+      expect(setCookie).toContain('token=;');
+      expect(setCookie).toContain('Expires=Thu, 01 Jan 1970');
+      expect(setCookie).toContain('HttpOnly'); // same options as login, or browsers won't clear it
+    });
+
+    it('changing the password: the old password and old logins stop working, the new ones work', async () => {
+      const { cookie: oldSession } = await register(person(9));
+
+      const wrong = await gqlAs(oldSession, CHANGE_PASSWORD, {
+        input: { currentPassword: 'not-my-password', newPassword: 'brand-new-password' },
+      }).expect(200);
+      // BAD_REQUEST, not UNAUTHENTICATED: the app treats UNAUTHENTICATED as "logged out"
+      expect(wrong.body.errors[0].extensions.code).toBe('BAD_REQUEST');
+
+      const changed = await gqlAs(oldSession, CHANGE_PASSWORD, {
+        input: { currentPassword: person(9).password, newPassword: 'brand-new-password' },
+      }).expect(200);
+      expect(changed.body.errors).toBeUndefined();
+
+      const oldCookie = await gqlAs(oldSession, ME).expect(200);
+      expect(oldCookie.body.errors[0].extensions.code).toBe('UNAUTHENTICATED'); // other devices are logged out
+      const newCookie = await gqlAs(cookieFrom(changed), ME).expect(200);
+      expect(newCookie.body.errors).toBeUndefined(); // this device stays logged in
+
+      expect((await login(person(9))).body.errors[0].message).toBe('Invalid email or password');
+      expect((await login({ email: person(9).email, password: 'brand-new-password' })).body.errors).toBeUndefined();
+    });
+
+    it('the first sign-up takes over the data from before accounts; later sign-ups start empty', async () => {
+      // The one user from before accounts: no email, with a food of its own
+      const legacy = await usersRepository.save(usersRepository.create({}));
+      await foodsRepository.save({ ...ROTI_CANAI, ownerId: legacy.id });
+
+      const first = await register(person(10));
+      const second = await register(person(11));
+
+      expect(first.user.id).toBe(legacy.id); // the same user, now with an email and password
+      expect(await foodsRepository.countBy({ ownerId: legacy.id })).toBe(1); // its data is still there
+      expect(second.user.id).not.toBe(legacy.id); // a new, empty account
+      expect(await foodsRepository.countBy({ ownerId: second.user.id })).toBe(0);
     });
   });
 });

@@ -4,11 +4,11 @@ import { Profile } from './profile.entity';
 import { ProfilesService } from './profiles.service';
 import { SaveProfileDto } from './save-profile.dto';
 import { CalorieTarget } from './calorie-target';
-import { SingleUserGuard } from '../auth/single-user.guard';
+import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/user.entity';
 
-@UseGuards(SingleUserGuard)
+@UseGuards(GqlAuthGuard) // logged in only: every query and change here is for the logged-in user's own data
 @Resolver(() => Profile)
 export class ProfilesResolver {
   constructor(private readonly profilesService: ProfilesService) {}

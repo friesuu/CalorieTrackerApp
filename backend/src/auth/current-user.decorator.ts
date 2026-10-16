@@ -7,4 +7,4 @@ export const CurrentUser = createParamDecorator((_data: unknown, context: Execut
 );
 
 // Gives resolver methods the current user. Only works on resolvers protected by a guard
-// that sets req.user (SingleUserGuard for now). Same file as in the task board.
+// that sets req.user (GqlAuthGuard). Same file as in the task board.

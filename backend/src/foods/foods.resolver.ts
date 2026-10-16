@@ -4,11 +4,11 @@ import { Food } from './food.entity';
 import { FoodsService } from './foods.service';
 import { CreateFoodDto } from './create-food.dto';
 import { UpdateFoodDto } from './update-food.dto';
-import { SingleUserGuard } from '../auth/single-user.guard';
+import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/user.entity';
 
-@UseGuards(SingleUserGuard)
+@UseGuards(GqlAuthGuard) // logged in only: every query and change here is for the logged-in user's own data
 @Resolver(() => Food)
 export class FoodsResolver {
   constructor(private readonly foodsService: FoodsService) {}

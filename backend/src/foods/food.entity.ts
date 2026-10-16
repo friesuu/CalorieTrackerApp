@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -11,10 +12,13 @@ import {
 import { User } from '../users/user.entity';
 import { numericTransformer } from '../common/numeric.transformer';
 
-// A food in your library, e.g. "Egg: 1 large = 72 kcal"
+// A food in a library, e.g. "Egg: 1 large = 72 kcal". Either a user's own (private) or a shared starter food.
 @ObjectType()
 @Entity('foods')
 @Unique(['ownerId', 'name']) // the same name twice in one library would be confusing
+// The rule above can't cover starter foods (owner_id is null, and null never equals null in SQL),
+// so starter foods get their own rule: each name only once
+@Index('UQ_foods_shared_name', ['name'], { unique: true, where: '"owner_id" IS NULL' })
 export class Food {
   @Field(() => Int)
   @PrimaryGeneratedColumn()
@@ -54,10 +58,17 @@ export class Food {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' }) // Many foods belong to one user
+  // Whose food it is. null = a shared starter food: everyone sees it, nobody can edit or delete it.
+  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' }) // Many foods belong to one user
   @JoinColumn({ name: 'owner_id' })
-  owner: User;
+  owner: User | null;
 
-  @Column({ name: 'owner_id', type: 'int', nullable: false })
-  ownerId: number;
+  @Column({ name: 'owner_id', type: 'int', nullable: true })
+  ownerId: number | null;
+
+  // For the app: true = a starter food (worked out from ownerId, not stored)
+  @Field()
+  get shared(): boolean {
+    return this.ownerId === null;
+  }
 }

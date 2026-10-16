@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { FoodsModule } from './foods/foods.module';
 import { DailyLogsModule } from './daily-logs/daily-logs.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { DailyLogsModule } from './daily-logs/daily-logs.module';
     ProfilesModule,
     FoodsModule,
     DailyLogsModule,
+    AuthModule
   ],
 })
 export class AppModule {}

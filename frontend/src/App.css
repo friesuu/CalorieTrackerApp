@@ -922,6 +922,169 @@ fieldset[aria-invalid='true'] .options {
   font-weight: 500;
 }
 
+/* ---------- Log in / sign up: one centred column, like the first run ---------- */
+
+.auth {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 48px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.auth-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-header img {
+  border-radius: 12px;
+}
+
+.auth-header h1 {
+  font-size: 1.75rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-form .btn-block,
+.auth .btn-block {
+  width: 100%;
+}
+
+/* "Your session has expired...": a calm note, not an error */
+.auth-notice {
+  padding: 12px 16px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.auth-switch {
+  color: var(--muted);
+  text-align: center;
+}
+
+/* A button that looks like a link, still 44px tall to tap */
+.link-btn {
+  min-height: 44px;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: var(--accent-strong);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Password field with Show / Hide inside it ---------- */
+
+.password-input {
+  position: relative;
+}
+
+.password-input .input {
+  padding-right: 72px; /* room for the button */
+}
+
+.password-toggle {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  bottom: 2px;
+  min-width: 64px;
+  padding: 0 12px;
+  background: none;
+  border: none;
+  border-radius: calc(var(--radius-control) - 2px);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+/* ---------- Avatar: your initial in a circle ---------- */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background-color: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.avatar-small {
+  width: 24px;
+  height: 24px;
+  font-size: 0.8125rem;
+}
+
+.avatar-large {
+  width: 52px;
+  height: 52px;
+  font-size: 1.25rem;
+}
+
+/* On the active Profile tab the initial is filled in, the same way the other tabs' icons change colour */
+.nav-item.active .avatar {
+  background-color: var(--accent-strong);
+  color: var(--surface);
+}
+
+/* Who's logged in, at the bottom of the laptop sidebar (hidden on phones) */
+.nav-user {
+  display: none;
+}
+
+/* ---------- Account card on the Profile page ---------- */
+
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.account-who {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.account-name {
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.account-email {
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.account-actions .btn {
+  flex: 1;
+}
+
+.profile-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 /* ---------- Loading and "can't connect" screens ---------- */
 
 .status-screen {
@@ -1074,9 +1237,46 @@ fieldset[aria-invalid='true'] .options {
     gap: 24px;
   }
 
-  .target-card {
+  /* The account and target stay in view while you scroll the details form */
+  .profile-side {
     position: sticky;
     top: 32px;
+  }
+
+  .nav {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nav-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: auto; /* pushed to the bottom of the sidebar */
+    padding: 16px 12px 0;
+    border-top: 1px solid var(--border);
+    min-width: 0;
+  }
+
+  .nav-user-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .nav-user-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .nav-user-email {
+    color: var(--muted);
+    font-size: 0.8125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sheet {

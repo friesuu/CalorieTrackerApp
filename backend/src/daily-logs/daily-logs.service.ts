@@ -9,6 +9,7 @@ import { UpdateLogEntryDto } from './update-log-entry.dto';
 import { Food } from '../foods/food.entity';
 import { User } from '../users/user.entity';
 import { ProfilesService } from '../profiles/profiles.service';
+import { FoodsService } from '../foods/foods.service';
 import { Week } from './week.types';
 import { eatenKcal } from './totals';
 import { addDays, isRealDate, todayIn } from '../common/dates';
@@ -39,6 +40,7 @@ export class DailyLogsService {
     @InjectRepository(Food)
     private readonly foodsRepository: Repository<Food>,
     private readonly profilesService: ProfilesService,
+    private readonly foodsService: FoodsService,
   ) {}
 
   // One day's log, entries in the order they were added.
@@ -63,10 +65,7 @@ export class DailyLogsService {
   // Log a library food. Its name, serving and calories are COPIED into the entry,
   // so editing or deleting the food later doesn't change this day.
   async addEntry(dto: AddLogEntryDto, user: User): Promise<DailyLog> {
-    const food = await this.foodsRepository.findOneBy({ id: dto.foodId, ownerId: user.id });
-    if (!food) {
-      throw new NotFoundException(`Food ${dto.foodId} not found`);
-    }
+    const food = await this.foodsService.findUsable(dto.foodId, user.id); // your own or a starter food
 
     const day = await this.findOrCreateDay(user, this.checkDate(user, dto.date));
 
@@ -145,7 +144,10 @@ export class DailyLogsService {
     const ids = [...new Set(entries.map((entry) => entry.foodId as number))].slice(0, RECENT_FOODS);
     if (ids.length === 0) return [];
 
-    const foods = await this.foodsRepository.findBy({ id: In(ids), ownerId: user.id });
+    const foods = await this.foodsRepository.findBy([
+      { id: In(ids), ownerId: user.id },
+      { id: In(ids), ownerId: IsNull() }, // starter foods you've logged count too
+    ]);
     return ids
       .map((id) => foods.find((food) => food.id === id))
       .filter((food): food is Food => food !== undefined); // back in "newest first" order

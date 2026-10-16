@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import ProfileForm from './ProfileForm';
 import TargetCard from './TargetCard';
 
-// The first screen, before anything else: collect the profile, then show the target it gives.
+// The first screen after signing up: collect the profile, then show the target it gives.
 // The saved profile is kept here (not in App) until "Start logging", so the result screen can be shown first.
-function FirstRun({ onSave, onDone })
+function FirstRun({ user, onSave, onDone, onLogout })
 {
     const [saved, setSaved] = useState(null);
     const resultHeadingRef = useRef(null);
@@ -39,12 +39,17 @@ function FirstRun({ onSave, onDone })
     return (
         <main className="first-run">
             <header className="first-run-header">
-                <h1>Welcome</h1>
+                <h1>Welcome, {user.name}</h1>
                 <p className="muted">
                     A few details first, so we can work out how many calories to aim for each day.
                 </p>
             </header>
             <ProfileForm submitLabel="Work out my target" onSave={handleSave} />
+            {/* Signed up with the wrong account on a shared computer? A way out before anything else */}
+            <p className="auth-switch">
+                Not {user.name}?{' '}
+                <button type="button" className="link-btn" onClick={onLogout}>Log out</button>
+            </p>
         </main>
     );
 }

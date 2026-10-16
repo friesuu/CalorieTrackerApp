@@ -8,12 +8,12 @@ import { UpdateLogEntryDto } from './update-log-entry.dto';
 import { eatenKcal, macroTotal } from './totals';
 import { Week } from './week.types';
 import { Food } from '../foods/food.entity';
-import { SingleUserGuard } from '../auth/single-user.guard';
+import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/user.entity';
 
 // Every change to a day returns the WHOLE day, so the page always shows the server's own totals
-@UseGuards(SingleUserGuard)
+@UseGuards(GqlAuthGuard) // logged in only: every query and change here is for the logged-in user's own data
 @Resolver(() => DailyLog)
 export class DailyLogsResolver {
   constructor(private readonly dailyLogsService: DailyLogsService) {}

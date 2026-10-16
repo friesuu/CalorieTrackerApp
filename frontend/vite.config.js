@@ -12,8 +12,9 @@ export default defineConfig({
     host: true, // also listen on your Wi-Fi address, so you can open the app on your phone
     // The page asks Vite for /graphql, and Vite passes it on to the NestJS API.
     // Page and API then share one address: no CORS, and it works from the phone too.
+    // API_URL lets a second copy point at another API, e.g. one using the test database
     proxy: {
-      '/graphql': 'http://localhost:3001',
+      '/graphql': process.env.API_URL ?? 'http://localhost:3001',
     },
   },
 })
