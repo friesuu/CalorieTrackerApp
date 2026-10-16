@@ -7,10 +7,14 @@ const USER_FIELDS = 'id name email';
 // device out). App listens for it and goes back to the login screen.
 export const SESSION_EXPIRED_EVENT = 'calorie-tracker:session-expired';
 const PROFILE_FIELDS = `sex birthDate age heightCm weightKg activityLevel goal
-  target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }`;
+  target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }
+  mealSplit { breakfast lunch dinner snack }`;
 const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG';
+const ENTRY_FIELDS = 'id foodId name servingSize servingUnit kcalPerServing proteinG carbsG fatG quantity kcal meal';
 const DAY_FIELDS = `date targetKcal eatenKcal remainingKcal proteinG carbsG fatG
-  entries { id foodId name servingSize servingUnit kcalPerServing proteinG carbsG fatG quantity kcal }`;
+  entries { ${ENTRY_FIELDS} }
+  meals { meal targetKcal eatenKcal entries { ${ENTRY_FIELDS} } }
+  unsortedEntries { ${ENTRY_FIELDS} }`;
 
 // Validation errors keep their real messages in originalError (as an array);
 // other errors have a readable message directly.
@@ -114,6 +118,16 @@ export async function changePassword(currentPassword, newPassword)
 
 // ---------- Profile ----------
 
+// Settings that aren't body details, e.g. { mealSplit: { breakfast: 25, lunch: 35, dinner: 30, snack: 10 } }
+export async function saveSettings(input)
+{
+    const data = await graphqlRequest(
+        `mutation SaveSettings($input: SettingsInput!) { saveSettings(input: $input) { ${PROFILE_FIELDS} } }`,
+        { input },
+    );
+    return data.saveSettings;
+}
+
 // The profile with its calorie target, or null on first run (nothing set up yet)
 export async function getProfile()
 {
@@ -208,7 +222,7 @@ export async function getRecentFoods()
 
 // The log changes below all return the whole day, with fresh totals from the server
 
-// input: { foodId, quantity, date }
+// input: { foodId, quantity, meal, date }
 export async function addLogEntry(input)
 {
     const data = await graphqlRequest(
@@ -220,7 +234,7 @@ export async function addLogEntry(input)
     return data.addLogEntry;
 }
 
-// input: { name, kcal, date }
+// input: { name, kcal, meal, date }
 export async function quickAdd(input)
 {
     const data = await graphqlRequest(
@@ -232,13 +246,14 @@ export async function quickAdd(input)
     return data.quickAdd;
 }
 
-export async function updateLogEntry(id, quantity)
+// changes: { quantity, meal } (either or both). A new meal moves the entry there.
+export async function updateLogEntry(id, changes)
 {
     const data = await graphqlRequest(
         `mutation UpdateLogEntry($id: Int!, $input: UpdateLogEntryInput!) {
             updateLogEntry(id: $id, input: $input) { ${DAY_FIELDS} }
         }`,
-        { id, input: { quantity } },
+        { id, input: changes },
     );
     return data.updateLogEntry;
 }

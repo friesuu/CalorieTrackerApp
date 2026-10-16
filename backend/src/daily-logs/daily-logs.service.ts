@@ -11,24 +11,32 @@ import { User } from '../users/user.entity';
 import { ProfilesService } from '../profiles/profiles.service';
 import { FoodsService } from '../foods/foods.service';
 import { Week } from './week.types';
+import { MealSplitColumns, splitColumns, splitOf } from '../profiles/meal-split';
 import { eatenKcal } from './totals';
 import { addDays, isRealDate, todayIn } from '../common/dates';
 
 const RECENT_FOODS = 8;
 const MAX_QUANTITY = 100; // the same limit as @Max(100) on quantity in the DTOs
 
-// Does a logged entry still hold the same copy of the food? Not if the food was edited since it was logged.
-function matchesFood(entry: LogEntry, food: Food): boolean {
+// The details an entry copies from its food
+type FoodDetails = Pick<Food, 'name' | 'servingSize' | 'servingUnit' | 'kcalPerServing' | 'proteinG' | 'carbsG' | 'fatG'>;
+
+// Do two copies of a food match? Not if the food was edited between them.
+// (Used for: an entry vs the food now, and two entries of the same food.)
+function sameDetails(a: FoodDetails, b: FoodDetails): boolean {
   return (
-    entry.name === food.name &&
-    entry.servingSize === food.servingSize &&
-    entry.servingUnit === food.servingUnit &&
-    entry.kcalPerServing === food.kcalPerServing &&
-    entry.proteinG === food.proteinG &&
-    entry.carbsG === food.carbsG &&
-    entry.fatG === food.fatG
+    a.name === b.name &&
+    a.servingSize === b.servingSize &&
+    a.servingUnit === b.servingUnit &&
+    a.kcalPerServing === b.kcalPerServing &&
+    a.proteinG === b.proteinG &&
+    a.carbsG === b.carbsG &&
+    a.fatG === b.fatG
   );
 }
+
+// 0.1 + 0.2 = 0.3, not 0.30000000000000004 (quantities have 2 decimal places)
+const addQuantities = (a: number, b: number) => Math.round((a + b) * 100) / 100;
 
 @Injectable()
 export class DailyLogsService {
@@ -57,7 +65,7 @@ export class DailyLogsService {
     return this.dailyLogsRepository.create({
       ownerId: user.id,
       logDate,
-      targetKcal: await this.currentTarget(user),
+      ...(await this.currentPlan(user)), // today's target and meal split, from the profile
       entries: [],
     });
   }
@@ -69,15 +77,16 @@ export class DailyLogsService {
 
     const day = await this.findOrCreateDay(user, this.checkDate(user, dto.date));
 
-    // Already in this day's log? Add to its servings: one "Egg, 3 large" row, not three "Egg" rows.
-    // Only when the logged copy still matches the food: if its calories were edited in between,
-    // a new row keeps both numbers right. (Checked in code, not in the query: a where with a null
-    // value, like a missing serving unit, would need IsNull() for every optional field.)
-    const sameFood = (await this.logEntriesRepository.findBy({ dailyLogId: day.id, foodId: food.id })).find(
-      (entry) => matchesFood(entry, food) && entry.quantity + dto.quantity <= MAX_QUANTITY,
+    // Already in this MEAL? Add to its servings: one "Egg, 3 large" row, not three "Egg" rows.
+    // (The same food at breakfast and at lunch stays two rows.) Only when the logged copy still matches
+    // the food: if its calories were edited in between, a new row keeps both numbers right.
+    // (Checked in code, not in the query: a where with a null value, like a missing serving unit,
+    // would need IsNull() for every optional field.)
+    const sameFood = (await this.logEntriesRepository.findBy({ dailyLogId: day.id, foodId: food.id, meal: dto.meal })).find(
+      (entry) => sameDetails(entry, food) && entry.quantity + dto.quantity <= MAX_QUANTITY,
     );
     if (sameFood) {
-      sameFood.quantity = Math.round((sameFood.quantity + dto.quantity) * 100) / 100; // 0.1 + 0.2 = 0.3, not 0.30000000000000004
+      sameFood.quantity = addQuantities(sameFood.quantity, dto.quantity);
       await this.logEntriesRepository.save(sameFood);
       return this.findDay(user, day.logDate);
     }
@@ -93,6 +102,7 @@ export class DailyLogsService {
         proteinG: food.proteinG,
         carbsG: food.carbsG,
         fatG: food.fatG,
+        meal: dto.meal,
         quantity: dto.quantity,
       }),
     );
@@ -111,6 +121,7 @@ export class DailyLogsService {
         servingSize: null,
         servingUnit: null,
         kcalPerServing: dto.kcal,
+        meal: dto.meal,
         quantity: 1,
       }),
     );
@@ -118,9 +129,34 @@ export class DailyLogsService {
     return this.findDay(user, day.logDate);
   }
 
+  // Change the quantity, move it to another meal, or both
   async updateEntry(id: number, dto: UpdateLogEntryDto, user: User): Promise<DailyLog> {
     const entry = await this.findEntry(id, user);
-    entry.quantity = dto.quantity;
+    if (dto.quantity === null || dto.meal === null) {
+      // an entry can't be emptied, or put back into "not sorted yet"
+      throw new BadRequestException('Quantity and meal cannot be empty');
+    }
+    if (dto.quantity === undefined && dto.meal === undefined) {
+      throw new BadRequestException('Send a new quantity or meal');
+    }
+
+    if (dto.quantity !== undefined) entry.quantity = dto.quantity;
+
+    if (dto.meal !== undefined && dto.meal !== entry.meal) {
+      // Moving it into a meal that already has the same food (same details): one row there, not two
+      const others = entry.foodId === null
+        ? []
+        : await this.logEntriesRepository.findBy({ dailyLogId: entry.dailyLogId, foodId: entry.foodId, meal: dto.meal });
+      const target = others.find((other) => sameDetails(other, entry) && other.quantity + entry.quantity <= MAX_QUANTITY);
+      if (target) {
+        target.quantity = addQuantities(target.quantity, entry.quantity);
+        await this.logEntriesRepository.save(target);
+        await this.logEntriesRepository.remove(entry);
+        return this.findDay(user, entry.dailyLog.logDate);
+      }
+      entry.meal = dto.meal;
+    }
+
     await this.logEntriesRepository.save(entry);
     return this.findDay(user, entry.dailyLog.logDate);
   }
@@ -211,19 +247,23 @@ export class DailyLogsService {
       .createQueryBuilder()
       .insert()
       .into(DailyLog)
-      .values({ ownerId: user.id, logDate, targetKcal: await this.currentTarget(user) })
+      .values({ ownerId: user.id, logDate, ...(await this.currentPlan(user)) })
       .orIgnore() // ON CONFLICT DO NOTHING
       .execute();
 
     return this.dailyLogsRepository.findOneByOrFail({ ownerId: user.id, logDate });
   }
 
-  private async currentTarget(user: User): Promise<number> {
+  // What a new day starts with: the target and the meal split as they are now (both copied into the day)
+  private async currentPlan(user: User): Promise<{ targetKcal: number } & MealSplitColumns> {
     const profile = await this.profilesService.findForUser(user.id);
     if (!profile) {
       throw new BadRequestException('Set up your profile first');
     }
-    return this.profilesService.targetFor(profile, user).targetKcal;
+    return {
+      targetKcal: this.profilesService.targetFor(profile, user).targetKcal,
+      ...splitColumns(splitOf(profile)),
+    };
   }
 
   // Only your own entries: an id from someone else's log is "not found", the same as a wrong id

@@ -1,5 +1,6 @@
 import { Field, Float, ObjectType } from '@nestjs/graphql';
 import {
+  Check,
   Column,
   Entity,
   JoinColumn,
@@ -12,11 +13,13 @@ import { Sex } from './sex.enum';
 import { ActivityLevel } from './activity-level.enum';
 import { Goal } from './goal.enum';
 import { numericTransformer } from '../common/numeric.transformer';
+import { SPLIT_ADDS_UP } from './meal-split';
 
 // Your body stats, used to work out the calorie target. One per user.
 // No row yet = the app shows the first-run screen.
 @ObjectType()
 @Entity('profiles')
+@Check('CHK_profiles_split_adds_up', SPLIT_ADDS_UP)
 export class Profile {
   @PrimaryGeneratedColumn()
   id: number;
@@ -52,6 +55,19 @@ export class Profile {
   @Field(() => Goal)
   @Column({ type: 'enum', enum: Goal, default: Goal.MAINTAIN })
   goal: Goal;
+
+  // How the target is shared out between the meals, in %. Shown through mealSplit (a field resolver).
+  @Column({ name: 'breakfast_pct', type: 'int', default: 25 })
+  breakfastPct: number;
+
+  @Column({ name: 'lunch_pct', type: 'int', default: 35 })
+  lunchPct: number;
+
+  @Column({ name: 'dinner_pct', type: 'int', default: 30 })
+  dinnerPct: number;
+
+  @Column({ name: 'snack_pct', type: 'int', default: 10 })
+  snackPct: number;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;

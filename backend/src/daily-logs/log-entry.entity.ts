@@ -11,6 +11,7 @@ import {
 import { DailyLog } from './daily-log.entity';
 import { Food } from '../foods/food.entity';
 import { numericTransformer } from '../common/numeric.transformer';
+import { Meal } from './meal.enum';
 
 // One thing you ate, e.g. "1.5 × Egg"
 @ObjectType()
@@ -66,6 +67,12 @@ export class LogEntry {
   @Field(() => Float, { nullable: true })
   @Column({ name: 'fat_g', type: 'numeric', precision: 6, scale: 1, nullable: true, transformer: numericTransformer })
   fatG: number | null;
+
+  // Which meal it's in. null only for entries logged before meals existed ("Not sorted yet"),
+  // until you move them into a meal: every new entry must have one (the DTOs require it).
+  @Field(() => Meal, { nullable: true })
+  @Column({ type: 'enum', enum: Meal, nullable: true })
+  meal: Meal | null;
 
   // How many servings, e.g. 1.5
   @Field(() => Float)

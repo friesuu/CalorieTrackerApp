@@ -7,6 +7,10 @@ import { QuickAddDto } from './quick-add.dto';
 import { UpdateLogEntryDto } from './update-log-entry.dto';
 import { eatenKcal, macroTotal } from './totals';
 import { Week } from './week.types';
+import { MealSummary } from './meal-summary.types';
+import { MEALS_IN_ORDER } from './meal.enum';
+import { LogEntry } from './log-entry.entity';
+import { mealTargets, splitOf } from '../profiles/meal-split';
 import { Food } from '../foods/food.entity';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -75,6 +79,22 @@ export class DailyLogsResolver {
   @ResolveField(() => Int)
   remainingKcal(@Parent() day: DailyLog): number {
     return day.targetKcal - eatenKcal(day.entries);
+  }
+
+  // Always all four meals, in order, each with its share of the target (the split that day)
+  @ResolveField(() => [MealSummary])
+  meals(@Parent() day: DailyLog): MealSummary[] {
+    const targets = mealTargets(day.targetKcal, splitOf(day));
+    return MEALS_IN_ORDER.map((meal) => {
+      const entries = day.entries.filter((entry) => entry.meal === meal);
+      return { meal, targetKcal: targets[meal], eatenKcal: eatenKcal(entries), entries };
+    });
+  }
+
+  // Entries logged before meals existed, until they're moved into a meal ("Not sorted yet")
+  @ResolveField(() => [LogEntry])
+  unsortedEntries(@Parent() day: DailyLog): LogEntry[] {
+    return day.entries.filter((entry) => entry.meal === null);
   }
 
   @ResolveField(() => Float, { nullable: true })

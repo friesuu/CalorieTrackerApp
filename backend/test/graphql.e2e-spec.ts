@@ -19,6 +19,13 @@ const STARTER_FOODS = ['Apple', 'Banana', 'Egg', 'Full cream milk', 'White bread
 const PROFILE_FIELDS = `
   sex birthDate age heightCm weightKg activityLevel goal
   target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }
+  mealSplit { breakfast lunch dinner snack }
+`;
+
+const SAVE_SETTINGS = `
+  mutation SaveSettings($input: SettingsInput!) {
+    saveSettings(input: $input) { ${PROFILE_FIELDS} }
+  }
 `;
 
 const PROFILE = `
@@ -61,7 +68,9 @@ const DELETE_FOOD = `
 
 const DAY_FIELDS = `
   date targetKcal eatenKcal remainingKcal proteinG carbsG fatG
-  entries { id foodId name servingSize servingUnit kcalPerServing quantity kcal }
+  entries { id foodId name servingSize servingUnit kcalPerServing quantity kcal meal }
+  meals { meal targetKcal eatenKcal entries { id name quantity } }
+  unsortedEntries { id name }
 `;
 
 const DAILY_LOG = `
@@ -550,8 +559,9 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
     });
 
+    // Breakfast unless the test says otherwise
     const addEntry = async (input: Record<string, unknown>) => {
-      const res = await gql(ADD_LOG_ENTRY, { input }).expect(200);
+      const res = await gql(ADD_LOG_ENTRY, { input: { meal: 'BREAKFAST', ...input } }).expect(200);
       expect(res.body.errors).toBeUndefined();
       return res.body.data.addLogEntry;
     };
@@ -577,6 +587,13 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
         carbsG: null,
         fatG: null,
         entries: [],
+        meals: [
+          { meal: 'BREAKFAST', targetKcal: 540, eatenKcal: 0, entries: [] },
+          { meal: 'LUNCH', targetKcal: 757, eatenKcal: 0, entries: [] },
+          { meal: 'DINNER', targetKcal: 648, eatenKcal: 0, entries: [] },
+          { meal: 'SNACK', targetKcal: 216, eatenKcal: 0, entries: [] },
+        ],
+        unsortedEntries: [],
       });
     });
 
@@ -623,22 +640,22 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       const egg = await idOf('Egg');
       await addEntry({ foodId: egg, quantity: 1, date: YESTERDAY });
       const today = await addEntry({ foodId: egg, quantity: 1 });
-      await gql(QUICK_ADD, { input: { kcal: 100 } }).expect(200);
-      const withQuick = (await gql(QUICK_ADD, { input: { kcal: 100 } }).expect(200)).body.data.quickAdd;
+      await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 100 } }).expect(200);
+      const withQuick = (await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 100 } }).expect(200)).body.data.quickAdd;
 
       expect(today.entries).toHaveLength(1);
       expect(withQuick.entries).toHaveLength(3); // the egg + two separate quick adds
     });
 
     it('goes negative when over target', async () => {
-      const res = await gql(QUICK_ADD, { input: { kcal: 2500 } }).expect(200);
+      const res = await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 2500 } }).expect(200);
 
       expect(res.body.data.quickAdd.remainingKcal).toBe(2161 - 2500);
     });
 
     it('quick add logs calories without a library food', async () => {
-      const unnamed = await gql(QUICK_ADD, { input: { kcal: 650 } }).expect(200);
-      const named = await gql(QUICK_ADD, { input: { name: '  Hawker dinner  ', kcal: 400 } }).expect(200);
+      const unnamed = await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 650 } }).expect(200);
+      const named = await gql(QUICK_ADD, { input: { meal: 'SNACK', name: '  Hawker dinner  ', kcal: 400 } }).expect(200);
 
       expect(unnamed.body.errors).toBeUndefined();
       expect(named.body.data.quickAdd.entries).toEqual([
@@ -676,7 +693,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     it('refuses a day in the future, and a date that does not exist', async () => {
-      const future = await gql(ADD_LOG_ENTRY, { input: { foodId: await idOf('Egg'), quantity: 1, date: addDays(TODAY, 1) } }).expect(200);
+      const future = await gql(ADD_LOG_ENTRY, { input: { meal: 'BREAKFAST', foodId: await idOf('Egg'), quantity: 1, date: addDays(TODAY, 1) } }).expect(200);
       const notReal = await gql(DAILY_LOG, { date: '2026-02-30' }).expect(200);
 
       expect(future.body.errors[0].message).toBe("You can't log a day in the future");
@@ -709,7 +726,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       await addEntry({ foodId: await idOf('Banana'), quantity: 1 });
       await addEntry({ foodId: await idOf('Egg'), quantity: 1 });
       await addEntry({ foodId: roti.id, quantity: 1 });
-      await gql(QUICK_ADD, { input: { kcal: 100 } }).expect(200); // not a library food: never "recent"
+      await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 100 } }).expect(200); // not a library food: never "recent"
       await gql(DELETE_FOOD, { id: roti.id }).expect(200);
 
       const res = await gql(RECENT_FOODS).expect(200);
@@ -719,14 +736,14 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
 
     it('says which entry or food was not found', async () => {
       const entry = await gql(DELETE_LOG_ENTRY, { id: 999999 }).expect(200);
-      const food = await gql(ADD_LOG_ENTRY, { input: { foodId: 999999, quantity: 1 } }).expect(200);
+      const food = await gql(ADD_LOG_ENTRY, { input: { meal: 'BREAKFAST', foodId: 999999, quantity: 1 } }).expect(200);
 
       expect(entry.body.errors[0].message).toBe('Entry 999999 not found');
       expect(food.body.errors[0].message).toBe('Food 999999 not found');
     });
 
     it('rejects a quantity of 0', async () => {
-      const res = await gql(ADD_LOG_ENTRY, { input: { foodId: await idOf('Egg'), quantity: 0 } }).expect(200);
+      const res = await gql(ADD_LOG_ENTRY, { input: { meal: 'BREAKFAST', foodId: await idOf('Egg'), quantity: 0 } }).expect(200);
 
       expect(res.body.errors[0].extensions.originalError.message).toContain('quantity must be a positive number');
     });
@@ -740,7 +757,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     const quickAddOn = async (date: string, kcal: number) => {
-      const res = await gql(QUICK_ADD, { input: { kcal, date } }).expect(200);
+      const res = await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal, date } }).expect(200);
       expect(res.body.errors).toBeUndefined();
       return res.body.data.quickAdd;
     };
@@ -813,6 +830,130 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
   });
 
+  describe('meals', () => {
+    // The 2,161 kcal profile with the default split (25 / 35 / 30 / 10)
+    beforeEach(async () => {
+      await resetFoods();
+      await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
+      await gql(SAVE_SETTINGS, { input: { mealSplit: { breakfast: 25, lunch: 35, dinner: 30, snack: 10 } } }).expect(200);
+    });
+
+    const add = async (meal: string, food: string, quantity = 1) => {
+      const res = await gql(ADD_LOG_ENTRY, { input: { meal, foodId: await idOf(food), quantity } }).expect(200);
+      expect(res.body.errors).toBeUndefined();
+      return res.body.data.addLogEntry;
+    };
+
+    // One meal of a day, by name
+    type MealOfDay = { meal: string; targetKcal: number; eatenKcal: number; entries: { id: number; name: string; quantity: number }[] };
+    const meal = (day: { meals: MealOfDay[] }, name: string) => day.meals.find((m) => m.meal === name);
+
+    it('the four meals share out the day, adding up to exactly the target', async () => {
+      const day = (await gql(DAILY_LOG).expect(200)).body.data.dailyLog;
+
+      expect(day.meals.map((m: { meal: string }) => m.meal)).toEqual(['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK']);
+      // 540.25 / 756.35 / 648.3 / 216.1 → the rounding left-over goes to the biggest meal (lunch)
+      expect(day.meals.map((m: { targetKcal: number }) => m.targetKcal)).toEqual([540, 757, 648, 216]);
+    });
+
+    it('each entry is in its meal, and each meal adds up its own calories', async () => {
+      await add('BREAKFAST', 'Egg', 2);
+      await add('LUNCH', 'Banana');
+      await gql(QUICK_ADD, { input: { meal: 'DINNER', kcal: 300 } }).expect(200);
+
+      const day = (await gql(DAILY_LOG).expect(200)).body.data.dailyLog;
+
+      expect(day.meals.map((m: { eatenKcal: number }) => m.eatenKcal)).toEqual([144, 105, 300, 0]);
+      expect(day.eatenKcal).toBe(549); // the day is still the total of everything
+      expect(meal(day, 'LUNCH')?.entries).toEqual([expect.objectContaining({ name: 'Banana' })]);
+    });
+
+    it('the same food in two meals stays two rows', async () => {
+      await add('BREAKFAST', 'Egg');
+      const day = await add('LUNCH', 'Egg');
+
+      expect(day.entries).toHaveLength(2);
+    });
+
+    it('a meal is required (GraphQL itself, HTTP 400)', async () => {
+      const res = await gql(ADD_LOG_ENTRY, { input: { foodId: await idOf('Egg'), quantity: 1 } }).expect(400);
+
+      expect(res.body.errors[0].extensions.code).toBe('BAD_USER_INPUT');
+    });
+
+    it('moves an entry to another meal, joining the same food there', async () => {
+      const breakfast = await add('BREAKFAST', 'Egg', 1);
+      await add('LUNCH', 'Egg', 2);
+      const eggId = breakfast.entries[0].id;
+
+      const res = await gql(UPDATE_LOG_ENTRY, { id: eggId, input: { meal: 'LUNCH' } }).expect(200);
+
+      expect(res.body.errors).toBeUndefined();
+      const day = res.body.data.updateLogEntry;
+      expect(meal(day, 'BREAKFAST')?.entries).toEqual([]);
+      expect(meal(day, 'LUNCH')?.entries).toEqual([expect.objectContaining({ name: 'Egg', quantity: 3 })]);
+    });
+
+    it('moves an entry to a meal without that food, and can change the quantity at the same time', async () => {
+      const day = await add('BREAKFAST', 'Banana');
+
+      const res = await gql(UPDATE_LOG_ENTRY, { id: day.entries[0].id, input: { meal: 'SNACK', quantity: 2 } }).expect(200);
+
+      expect(meal(res.body.data.updateLogEntry, 'SNACK')?.entries).toEqual([expect.objectContaining({ name: 'Banana', quantity: 2 })]);
+    });
+
+    it("can't put an entry back into \"not sorted\", or send nothing to change", async () => {
+      const day = await add('BREAKFAST', 'Egg');
+      const id = day.entries[0].id;
+
+      const unsorted = await gql(UPDATE_LOG_ENTRY, { id, input: { meal: null } }).expect(200);
+      const nothing = await gql(UPDATE_LOG_ENTRY, { id, input: {} }).expect(200);
+
+      expect(unsorted.body.errors[0].message).toBe('Quantity and meal cannot be empty');
+      expect(nothing.body.errors[0].message).toBe('Send a new quantity or meal');
+    });
+
+    it('entries from before meals existed show as "not sorted" until moved into a meal', async () => {
+      await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 100 } }).expect(200);
+      const today = await dailyLogsRepository.findOneByOrFail({ ownerId: userId, logDate: TODAY });
+      const old = await logEntriesRepository.save({
+        dailyLogId: today.id, name: 'Logged before meals', servingSize: null, servingUnit: null, kcalPerServing: 200, quantity: 1, meal: null,
+      });
+
+      const before = (await gql(DAILY_LOG).expect(200)).body.data.dailyLog;
+      expect(before.unsortedEntries).toEqual([{ id: old.id, name: 'Logged before meals' }]);
+      expect(before.eatenKcal).toBe(300); // still counted in the day
+      expect(before.meals.flatMap((m: { entries: unknown[] }) => m.entries)).toHaveLength(1); // only the quick add
+
+      const after = (await gql(UPDATE_LOG_ENTRY, { id: old.id, input: { meal: 'DINNER' } }).expect(200)).body.data.updateLogEntry;
+      expect(after.unsortedEntries).toEqual([]);
+      expect(meal(after, 'DINNER')?.eatenKcal).toBe(200);
+    });
+
+    it('a new split changes today, but not days already logged', async () => {
+      await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 100, date: addDays(TODAY, -1) } }).expect(200);
+      await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 100 } }).expect(200);
+
+      const saved = await gql(SAVE_SETTINGS, { input: { mealSplit: { breakfast: 20, lunch: 40, dinner: 30, snack: 10 } } }).expect(200);
+
+      expect(saved.body.errors).toBeUndefined();
+      expect(saved.body.data.saveSettings.mealSplit).toEqual({ breakfast: 20, lunch: 40, dinner: 30, snack: 10 });
+      const today = (await gql(DAILY_LOG).expect(200)).body.data.dailyLog;
+      const yesterday = (await gql(DAILY_LOG, { date: addDays(TODAY, -1) }).expect(200)).body.data.dailyLog;
+      expect(meal(today, 'BREAKFAST')?.targetKcal).toBe(432); // 20% of 2,161
+      expect(meal(yesterday, 'BREAKFAST')?.targetKcal).toBe(540); // still 25%
+    });
+
+    it('the split must add up to 100%, with whole numbers from 0 to 100', async () => {
+      const notHundred = await gql(SAVE_SETTINGS, { input: { mealSplit: { breakfast: 50, lunch: 50, dinner: 50, snack: 0 } } }).expect(200);
+      const negative = await gql(SAVE_SETTINGS, { input: { mealSplit: { breakfast: -10, lunch: 50, dinner: 50, snack: 10 } } }).expect(200);
+
+      expect(notHundred.body.errors[0].message).toBe('The meal split must add up to 100%');
+      expect(negative.body.errors).toBeDefined();
+      expect((await gql(PROFILE).expect(200)).body.data.profile.mealSplit).toEqual({ breakfast: 25, lunch: 35, dinner: 30, snack: 10 });
+    });
+  });
+
   describe('privacy', () => {
     beforeEach(async () => {
       await resetFoods();
@@ -826,7 +967,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
         [FOODS],
         [CREATE_FOOD, { input: ROTI_CANAI }],
         [DAILY_LOG],
-        [QUICK_ADD, { input: { kcal: 100 } }],
+        [QUICK_ADD, { input: { meal: 'SNACK', kcal: 100 } }],
         [WEEK],
         [RECENT_FOODS],
         [ME],
@@ -845,7 +986,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       const list = await gqlAs(otherCookie, FOODS).expect(200);
       const edit = await gqlAs(otherCookie, UPDATE_FOOD, { id: roti.id, input: { kcalPerServing: 1 } }).expect(200);
       const remove = await gqlAs(otherCookie, DELETE_FOOD, { id: roti.id }).expect(200);
-      const log = await gqlAs(otherCookie, ADD_LOG_ENTRY, { input: { foodId: roti.id, quantity: 1 } }).expect(200);
+      const log = await gqlAs(otherCookie, ADD_LOG_ENTRY, { input: { meal: 'BREAKFAST', foodId: roti.id, quantity: 1 } }).expect(200);
 
       expect(list.body.data.foods.map((f: { name: string }) => f.name)).not.toContain('Roti canai');
       // "not found", the same as a wrong id: it doesn't even say the food exists
@@ -856,7 +997,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     it("another user can't see, change or remove your log entries", async () => {
-      const day = (await gql(ADD_LOG_ENTRY, { input: { foodId: await idOf('Egg'), quantity: 2 } }).expect(200)).body.data.addLogEntry;
+      const day = (await gql(ADD_LOG_ENTRY, { input: { meal: 'BREAKFAST', foodId: await idOf('Egg'), quantity: 2 } }).expect(200)).body.data.addLogEntry;
       const entryId = day.entries[0].id;
       await gqlAs(otherCookie, SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
 
@@ -871,7 +1012,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     it('each user has their own profile and history', async () => {
-      await gql(QUICK_ADD, { input: { kcal: 500 } }).expect(200);
+      await gql(QUICK_ADD, { input: { meal: 'SNACK', kcal: 500 } }).expect(200);
       await profilesRepository.delete({ userId: (await usersRepository.findOneByOrFail({ email: OTHER_USER.email })).id });
 
       const theirProfile = await gqlAs(otherCookie, PROFILE).expect(200);

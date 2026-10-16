@@ -7,6 +7,8 @@ import { CalorieTarget, calculateTarget } from './calorie-target';
 import { DailyLog } from '../daily-logs/daily-log.entity';
 import { User } from '../users/user.entity';
 import { ageOn, todayIn } from '../common/dates';
+import { SaveSettingsDto } from './save-settings.dto';
+import { splitColumns } from './meal-split';
 
 @Injectable()
 export class ProfilesService {
@@ -42,6 +44,30 @@ export class ProfilesService {
       { targetKcal: this.targetFor(saved, user).targetKcal },
     );
 
+    return saved;
+  }
+
+  // Settings that aren't body details (the meal split now; the exercise setting comes later)
+  async saveSettings(dto: SaveSettingsDto, user: User): Promise<Profile> {
+    const profile = await this.findForUser(user.id);
+    if (!profile) {
+      throw new BadRequestException('Set up your profile first');
+    }
+
+    if (dto.mealSplit) {
+      const { breakfast, lunch, dinner, snack } = dto.mealSplit;
+      // Checked here for a readable message; the database's CHECK rule would refuse it anyway
+      if (breakfast + lunch + dinner + snack !== 100) {
+        throw new BadRequestException('The meal split must add up to 100%');
+      }
+      this.profilesRepository.merge(profile, splitColumns(dto.mealSplit));
+    }
+    const saved = await this.profilesRepository.save(profile);
+
+    // Today follows the new split straight away; past days keep the one they had (like the target)
+    if (dto.mealSplit) {
+      await this.dailyLogsRepository.update({ ownerId: user.id, logDate: todayIn(user.timezone) }, splitColumns(dto.mealSplit));
+    }
     return saved;
   }
 

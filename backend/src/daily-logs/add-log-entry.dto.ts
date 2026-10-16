@@ -1,5 +1,6 @@
 import { Field, Float, InputType, Int } from '@nestjs/graphql';
-import { IsDateString, IsInt, IsOptional, IsPositive, Matches, Max } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsOptional, IsPositive, Matches, Max } from 'class-validator';
+import { Meal } from './meal.enum';
 
 @InputType('AddLogEntryInput')
 export class AddLogEntryDto {
@@ -9,6 +10,11 @@ export class AddLogEntryDto {
   @Field(() => Int)
   @IsInt()
   foodId: number;
+
+  // Which meal it goes in
+  @Field(() => Meal)
+  @IsEnum(Meal)
+  meal: Meal;
 
   // How many servings, e.g. 1.5
   @Field(() => Float)

@@ -1,11 +1,18 @@
 import { Field, Float, InputType } from '@nestjs/graphql';
-import { IsPositive, Max } from 'class-validator';
+import { IsEnum, IsOptional, IsPositive, Max } from 'class-validator';
+import { Meal } from './meal.enum';
 
-// Only the quantity can change. A different food = remove the entry and add the other one.
+// Change how much, or move it to another meal (or both). A different food = remove it and add the other one.
 @InputType('UpdateLogEntryInput')
 export class UpdateLogEntryDto {
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
+  @IsOptional()
   @IsPositive()
   @Max(100)
-  quantity: number;
+  quantity?: number | null;
+
+  @Field(() => Meal, { nullable: true })
+  @IsOptional()
+  @IsEnum(Meal)
+  meal?: Meal | null;
 }

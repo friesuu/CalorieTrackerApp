@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ProfileForm from './ProfileForm';
 import TargetCard from './TargetCard';
+import MealSplitForm from './MealSplitForm';
 import ChangePasswordForm from './ChangePasswordForm';
 import Sheet from './Sheet';
 import Avatar from './Avatar';
@@ -55,9 +56,9 @@ function AccountCard({ user, onChangePassword, onLogout })
     );
 }
 
-// The Profile page: your account, the target and how it's worked out, then the details to edit.
-// Saving goes through App (onSave), so the new target shows everywhere at once.
-function Profile({ user, profile, onSave, onChangePassword, onLogout })
+// The Profile page: your account, the target and how it's worked out, then the details and meal split to edit.
+// Saving goes through App (onSave, onSaveSettings), so the new target shows everywhere at once.
+function Profile({ user, profile, onSave, onSaveSettings, onChangePassword, onLogout })
 {
     return (
         <div className="profile-layout">
@@ -66,10 +67,17 @@ function Profile({ user, profile, onSave, onChangePassword, onLogout })
                 <TargetCard profile={profile} />
             </div>
 
-            <section className="profile-details" aria-labelledby="details-title">
-                <h2 id="details-title" className="section-title">Your details</h2>
-                <ProfileForm profile={profile} submitLabel="Save changes" onSave={onSave} />
-            </section>
+            <div className="profile-main">
+                <section className="profile-details" aria-labelledby="details-title">
+                    <h2 id="details-title" className="section-title">Your details</h2>
+                    <ProfileForm profile={profile} submitLabel="Save changes" onSave={onSave} />
+                </section>
+
+                <section className="profile-details" aria-labelledby="split-title">
+                    <h2 id="split-title" className="section-title">Meal split</h2>
+                    <MealSplitForm profile={profile} onSave={onSaveSettings} />
+                </section>
+            </div>
         </div>
     );
 }

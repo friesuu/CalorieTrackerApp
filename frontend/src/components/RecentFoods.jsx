@@ -14,7 +14,7 @@ function ChipContent({ food })
 }
 
 // The foods you log most often, as chips. Tap one to add it, or (on a phone too) press, hold and drag it
-// into the log. Works the same way as the library list: see DraggableFoodList in FoodPicker.jsx.
+// onto a meal. Works the same way as the library list: see DraggableFoodList in FoodPicker.jsx.
 // Hidden until you've logged something from the library.
 function RecentFoods({ foods, onPick })
 {

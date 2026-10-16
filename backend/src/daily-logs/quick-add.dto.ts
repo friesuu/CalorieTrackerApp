@@ -1,5 +1,6 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsDateString, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { Meal } from './meal.enum';
 import { Transform } from 'class-transformer';
 
 // Log calories without a library food, e.g. "Hawker dinner, 650 kcal"
@@ -12,6 +13,11 @@ export class QuickAddDto {
   @IsString()
   @MaxLength(100)
   name?: string | null;
+
+  // Which meal it goes in
+  @Field(() => Meal)
+  @IsEnum(Meal)
+  meal: Meal;
 
   @Field(() => Int)
   @Min(1)

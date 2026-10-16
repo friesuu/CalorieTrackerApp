@@ -3,7 +3,7 @@ import { Draggable, Droppable } from '@hello-pangea/dnd';
 import FoodRow from './FoodRow';
 import { filterFoods } from '../foodSearch';
 
-// The food list, with drag and drop (laptop: drag a food into the log). Tapping still works.
+// The food list, with drag and drop (laptop: drag a food onto a meal). Tapping still works.
 // Dragging COPIES a food into the log, so the library itself never changes:
 //  - renderClone draws the moving copy (in <body>, so nothing can cut it off)
 //  - a still copy stays in the list where the food was (the library hides the original while it's dragged)
@@ -120,7 +120,7 @@ function FoodPicker({ foods, loadError, onRetry, onPick, onQuickAdd, draggable =
                     onChange={(e) => setSearch(e.target.value)}
                 />
             </div>
-            {draggable && shown?.length > 0 && <p className="field-hint">Tap a food to add it, or drag it into your log.</p>}
+            {draggable && shown?.length > 0 && <p className="field-hint">Tap a food to add it, or drag it onto a meal.</p>}
             {content}
         </div>
     );

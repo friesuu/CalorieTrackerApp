@@ -9,6 +9,13 @@ type User {
   timezone: String!
 }
 
+type MealSplit {
+  breakfast: Int!
+  lunch: Int!
+  dinner: Int!
+  snack: Int!
+}
+
 type Profile {
   sex: Sex!
   birthDate: String!
@@ -16,6 +23,7 @@ type Profile {
   weightKg: Float!
   activityLevel: ActivityLevel!
   goal: Goal!
+  mealSplit: MealSplit!
   age: Int!
   target: CalorieTarget!
 }
@@ -70,9 +78,17 @@ type LogEntry {
   proteinG: Float
   carbsG: Float
   fatG: Float
+  meal: Meal
   quantity: Float!
   createdAt: DateTime!
   kcal: Int!
+}
+
+enum Meal {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
 }
 
 """
@@ -86,6 +102,8 @@ type DailyLog {
   entries: [LogEntry!]!
   eatenKcal: Int!
   remainingKcal: Int!
+  meals: [MealSummary!]!
+  unsortedEntries: [LogEntry!]!
   proteinG: Float
   carbsG: Float
   fatG: Float
@@ -107,6 +125,13 @@ type Week {
   averageTargetKcal: Int
 }
 
+type MealSummary {
+  meal: Meal!
+  targetKcal: Int!
+  eatenKcal: Int!
+  entries: [LogEntry!]!
+}
+
 type Query {
   profile: Profile
   me: User!
@@ -118,6 +143,7 @@ type Query {
 
 type Mutation {
   saveProfile(input: ProfileInput!): Profile!
+  saveSettings(input: SettingsInput!): Profile!
   register(input: RegisterInput!): User!
   login(input: LoginInput!): User!
   logout: Boolean!
@@ -138,6 +164,17 @@ input ProfileInput {
   weightKg: Float!
   activityLevel: ActivityLevel!
   goal: Goal!
+}
+
+input SettingsInput {
+  mealSplit: MealSplitInput
+}
+
+input MealSplitInput {
+  breakfast: Int!
+  lunch: Int!
+  dinner: Int!
+  snack: Int!
 }
 
 input RegisterInput {
@@ -178,16 +215,19 @@ input UpdateFoodInput {
 
 input AddLogEntryInput {
   foodId: Int!
+  meal: Meal!
   quantity: Float!
   date: String
 }
 
 input QuickAddInput {
   name: String
+  meal: Meal!
   kcal: Int!
   date: String
 }
 
 input UpdateLogEntryInput {
-  quantity: Float!
+  quantity: Float
+  meal: Meal
 }

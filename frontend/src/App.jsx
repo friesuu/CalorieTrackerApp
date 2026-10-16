@@ -1,7 +1,7 @@
 import './App.css';
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getMe, logout, changePassword, getProfile, saveProfile, getFoods, createFood, updateFood, deleteFood,
+  getMe, logout, changePassword, getProfile, saveProfile, saveSettings, getFoods, createFood, updateFood, deleteFood,
   SESSION_EXPIRED_EVENT,
 } from './api';
 import { PAGES } from './pages';
@@ -108,6 +108,13 @@ function App()
     return saved;
   };
 
+  // The meal split (and later the exercise setting): same idea, a separate form on the Profile page
+  const handleSaveSettings = async (input) => {
+    const saved = await saveSettings(input);
+    setProfile(saved);
+    return saved;
+  };
+
   // Adding a food: save it, then put it in the list in A to Z order.
   // No try/catch: if saving fails, the error goes up to FoodForm, which shows it and keeps what was typed.
   const handleCreateFood = async (input) => {
@@ -202,6 +209,7 @@ function App()
             user={user}
             profile={profile}
             onSave={handleSaveProfile}
+            onSaveSettings={handleSaveSettings}
             onChangePassword={changePassword}
             onLogout={handleLogout}
           />

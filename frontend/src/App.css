@@ -227,6 +227,26 @@ fieldset.field {
   border-left: 1px solid var(--border);
 }
 
+/* The four meals, two by two. The 1px gap shows the group's background through: the dividers. */
+.options.meal-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background-color: var(--border);
+}
+
+.meal-options .option {
+  background-color: var(--surface);
+}
+
+.meal-options .option + .option {
+  border-top: none;
+}
+
+.meal-options .option.selected {
+  background-color: var(--accent-soft);
+}
+
 fieldset[aria-invalid='true'] .options {
   border-color: var(--over);
 }
@@ -339,10 +359,82 @@ fieldset[aria-invalid='true'] .options {
   gap: 24px;
 }
 
+.profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+
 .profile-details {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* ---------- Meal split: Breakfast [ 25 % ]  540 kcal ---------- */
+
+.split-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.split-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.split-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6.5rem 5.5rem;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The % sits inside the box, after the number */
+.split-input {
+  position: relative;
+}
+
+.split-input .input {
+  padding-right: 32px;
+  text-align: right;
+}
+
+.split-suffix {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+
+.split-kcal {
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.split-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.split-total.off {
+  color: var(--over);
+}
+
+.split-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 /* ---------- Lists: rows inside one card, square, 1px dividers ---------- */
@@ -671,6 +763,7 @@ fieldset[aria-invalid='true'] .options {
 }
 
 .recent .list-meta,
+.meals .list-meta,
 .day-log .list-meta {
   margin-bottom: 0;
   font-weight: 500;
@@ -789,6 +882,113 @@ fieldset[aria-invalid='true'] .options {
   white-space: nowrap;
 }
 
+/* ---------- Meals on Today: one card each, tap to open, drop a food on it to add ---------- */
+
+.meals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meal-list {
+  display: grid;
+  /* One column on a phone, two by two once there's room. Never three: 3 × 40% is more than 100%. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(260px, 40%)), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Closer than the log's outline, so two cards' dashed outlines never touch */
+.meal-list .drop-zone {
+  outline-offset: 2px;
+}
+
+/* Breakfast ........ 144 / 540 kcal ›
+   [bar]
+   Egg, Toast ............ 396 left */
+.meal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  color: inherit;
+  text-align: left;
+}
+
+.meal-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meal-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.meal-kcal {
+  color: var(--muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.meal-kcal strong {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.meal-chevron {
+  display: flex;
+  margin-right: -4px;
+  color: var(--muted);
+}
+
+.meal-card-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.875rem;
+}
+
+/* What's in it, on one line: cut off with … when it's long */
+.meal-items {
+  min-width: 0;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meal-status {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.meal-status.over {
+  color: var(--over);
+  font-weight: 500;
+}
+
+/* Inside a meal: back to the day above the meal's title */
+.meal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.back-btn {
+  gap: 4px;
+  margin-left: -8px;
+  padding: 0 14px 0 6px;
+  background: none;
+  border-color: transparent;
+}
+
 /* ---------- Drag and drop ---------- */
 
 /* The moving copy (drawn in <body> by the drag library). The one shadow in the app, so it visibly lifts. */
@@ -836,10 +1036,10 @@ fieldset[aria-invalid='true'] .options {
   background-color: var(--accent-soft);
 }
 
-/* The gap the library adds while a food is over the log copies the dragged item's tag (an <li>):
-   outside a list it would show a bullet */
-.drop-zone > li {
-  list-style: none;
+/* The room the library makes for a dropped item. A drop opens the add sheet instead,
+   so it's hidden: nothing grows or jumps while you drag over the meals. */
+.drop-placeholder {
+  display: none;
 }
 
 /* ---------- History: weekly average, then one row per day ---------- */

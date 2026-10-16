@@ -1,20 +1,43 @@
-// The entry a new serving of `food` will be added to, or null if it gets its own row.
-// The same rule as the server (addEntry in daily-logs.service.ts): same library food, and the logged copy
-// still has the food's current details. If the food was edited since, it gets a new row.
-// The server decides; this only lets the add sheet say what will happen.
+// Which logged entry a new serving (or a moved entry) joins, so the sheet can say so before you save.
+// The same rules as the server (addEntry and updateEntry in daily-logs.service.ts). The server decides;
+// these only let the sheet say what will happen.
 const MAX_QUANTITY = 100;
 
-export function entryToAddTo(entries, food, quantity = 0)
+// Logged with exactly the same details (a food edited since then is a different row)
+function sameDetails(a, b)
+{
+    return a.name === b.name &&
+        a.servingSize === b.servingSize &&
+        a.servingUnit === b.servingUnit &&
+        a.kcalPerServing === b.kcalPerServing &&
+        a.proteinG === b.proteinG &&
+        a.carbsG === b.carbsG &&
+        a.fatG === b.fatG;
+}
+
+// Adding `quantity` of `food` to `meal`: the entry it's added to, or null if it gets its own row.
+// Same library food in the same meal, still with the food's current details, and 100 servings at most.
+export function entryToAddTo(entries, food, meal, quantity = 0)
 {
     return entries.find((entry) =>
+        entry.meal === meal &&
         entry.foodId === food.id &&
-        entry.name === food.name &&
-        entry.servingSize === food.servingSize &&
-        entry.servingUnit === food.servingUnit &&
-        entry.kcalPerServing === food.kcalPerServing &&
-        entry.proteinG === food.proteinG &&
-        entry.carbsG === food.carbsG &&
-        entry.fatG === food.fatG &&
+        sameDetails(entry, food) &&
         entry.quantity + quantity <= MAX_QUANTITY
+    ) ?? null;
+}
+
+// Moving `entry` (now `quantity` servings) to `meal`: the entry there it joins, or null if it moves as it is.
+// Quick adds (no library food) always move as they are.
+export function entryToMoveTo(entries, entry, meal, quantity = entry.quantity)
+{
+    if (entry.foodId === null || meal === entry.meal) return null;
+
+    return entries.find((other) =>
+        other.id !== entry.id &&
+        other.meal === meal &&
+        other.foodId === entry.foodId &&
+        sameDetails(other, entry) &&
+        other.quantity + quantity <= MAX_QUANTITY
     ) ?? null;
 }
