@@ -14,6 +14,20 @@ import { eatenKcal } from './totals';
 import { addDays, isRealDate, todayIn } from '../common/dates';
 
 const RECENT_FOODS = 8;
+const MAX_QUANTITY = 100; // the same limit as @Max(100) on quantity in the DTOs
+
+// Does a logged entry still hold the same copy of the food? Not if the food was edited since it was logged.
+function matchesFood(entry: LogEntry, food: Food): boolean {
+  return (
+    entry.name === food.name &&
+    entry.servingSize === food.servingSize &&
+    entry.servingUnit === food.servingUnit &&
+    entry.kcalPerServing === food.kcalPerServing &&
+    entry.proteinG === food.proteinG &&
+    entry.carbsG === food.carbsG &&
+    entry.fatG === food.fatG
+  );
+}
 
 @Injectable()
 export class DailyLogsService {
@@ -55,6 +69,20 @@ export class DailyLogsService {
     }
 
     const day = await this.findOrCreateDay(user, this.checkDate(user, dto.date));
+
+    // Already in this day's log? Add to its servings: one "Egg, 3 large" row, not three "Egg" rows.
+    // Only when the logged copy still matches the food: if its calories were edited in between,
+    // a new row keeps both numbers right. (Checked in code, not in the query: a where with a null
+    // value, like a missing serving unit, would need IsNull() for every optional field.)
+    const sameFood = (await this.logEntriesRepository.findBy({ dailyLogId: day.id, foodId: food.id })).find(
+      (entry) => matchesFood(entry, food) && entry.quantity + dto.quantity <= MAX_QUANTITY,
+    );
+    if (sameFood) {
+      sameFood.quantity = Math.round((sameFood.quantity + dto.quantity) * 100) / 100; // 0.1 + 0.2 = 0.3, not 0.30000000000000004
+      await this.logEntriesRepository.save(sameFood);
+      return this.findDay(user, day.logDate);
+    }
+
     await this.logEntriesRepository.save(
       this.logEntriesRepository.create({
         dailyLogId: day.id,
@@ -105,11 +133,12 @@ export class DailyLogsService {
   }
 
   // The last few DIFFERENT library foods you logged, newest first (for one-tap adding).
-  // Foods deleted since then are left out.
+  // By updatedAt, not createdAt: adding more of a food that's already logged today updates that row,
+  // and it should still jump to the front. Foods deleted since then are left out.
   async recentFoods(user: User): Promise<Food[]> {
     const entries = await this.logEntriesRepository.find({
       where: { dailyLog: { ownerId: user.id }, foodId: Not(IsNull()) },
-      order: { createdAt: 'DESC', id: 'DESC' },
+      order: { updatedAt: 'DESC', id: 'DESC' },
       take: 100, // plenty to find 8 different foods among
     });
 

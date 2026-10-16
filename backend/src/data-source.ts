@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { join } from 'path';
+import { extname, join } from 'path';
 
 // Only used by the TypeORM command line (npm run migration:...). That runs outside Nest,
 // so it reads .env itself instead of going through ConfigModule.
@@ -12,7 +12,8 @@ export default new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  // The CLI runs the compiled files in dist/, so these find the .js versions
-  entities: [join(__dirname, '**', '*.entity.js')],
-  migrations: [join(__dirname, 'migrations', '*.js')],
+  // The migration commands run this file straight from src/ (ts-node), so these find the .ts files.
+  // extname: '.ts' there, '.js' if it's ever run from dist/ (where *.ts would also match the .d.ts files).
+  entities: [join(__dirname, '**', `*.entity${extname(__filename)}`)],
+  migrations: [join(__dirname, 'migrations', `*${extname(__filename)}`)],
 });

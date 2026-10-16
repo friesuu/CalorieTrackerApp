@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { DailyLog } from './daily-log.entity';
 import { Food } from '../foods/food.entity';
@@ -74,4 +75,8 @@ export class LogEntry {
   @Field()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
+
+  // Last change, e.g. more servings added to it. Recent foods are ordered by this.
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt: Date;
 }

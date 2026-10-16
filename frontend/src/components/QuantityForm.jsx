@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { formatKcal, formatServing } from '../numbers';
+import { formatKcal, formatPortion, formatServing } from '../numbers';
 import { MinusIcon, PlusIcon } from './Icons';
 
 const STEP = 0.5; // the − and + buttons; any other amount (e.g. 0.25) can be typed
 
 // How many servings of a food (adding it, or changing a logged entry).
 // item is a food or a log entry: both have name, servingSize, servingUnit and kcalPerServing.
-function QuantityForm({ item, initialQuantity = 1, submitLabel, onSave })
+// addsTo: the logged entry this will be added to (the same food is already in that day), or null.
+function QuantityForm({ item, initialQuantity = 1, submitLabel, onSave, addsTo = null, onDay = 'today' })
 {
     const [quantity, setQuantity] = useState(String(initialQuantity));
     const [error, setError] = useState(null);
@@ -51,6 +52,18 @@ function QuantityForm({ item, initialQuantity = 1, submitLabel, onSave })
                 <p className="quantity-name">{item.name}</p>
                 <p className="muted num">{formatServing(item.servingSize, item.servingUnit)} · {formatKcal(item.kcalPerServing)} kcal</p>
             </div>
+
+            {/* So adding more of a food never quietly changes a row you didn't expect.
+                (Over 100 servings in total, the server makes a new row instead, so no note then.) */}
+            {addsTo && !(isValid && addsTo.quantity + amount > 100) && (
+                <p className="merge-note">
+                    {item.name} is already logged {onDay} ({formatPortion(addsTo.quantity, item.servingSize, item.servingUnit)}).
+                    {' '}This adds to it
+                    {isValid
+                        ? `: ${formatPortion(Math.round((addsTo.quantity + amount) * 100) / 100, item.servingSize, item.servingUnit)} in total.`
+                        : '.'}
+                </p>
+            )}
 
             <div className="field">
                 <label htmlFor="quantity" className="field-label">Servings</label>

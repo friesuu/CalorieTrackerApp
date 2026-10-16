@@ -526,12 +526,43 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
 
     it('rounds each entry to whole calories, and the total adds up the rounded rows', async () => {
-      // 1.5 × 105 = 157.5 → 158, twice = 316
+      // 1.5 × 105 = 157.5 → 158, and 1.5 × 95 = 142.5 → 143: 301 (not the unrounded 300)
       await addEntry({ foodId: await idOf('Banana'), quantity: 1.5 });
-      const day = await addEntry({ foodId: await idOf('Banana'), quantity: 1.5 });
+      const day = await addEntry({ foodId: await idOf('Apple'), quantity: 1.5 });
 
-      expect(day.entries.map((e: { kcal: number }) => e.kcal)).toEqual([158, 158]);
-      expect(day.eatenKcal).toBe(316);
+      expect(day.entries.map((e: { kcal: number }) => e.kcal)).toEqual([158, 143]);
+      expect(day.eatenKcal).toBe(301);
+    });
+
+    it('adding a food that is already in the day adds to its servings (one row, not two)', async () => {
+      const egg = await idOf('Egg');
+      await addEntry({ foodId: egg, quantity: 1 });
+      const day = await addEntry({ foodId: egg, quantity: 1.5 });
+
+      expect(day.entries).toEqual([expect.objectContaining({ name: 'Egg', quantity: 2.5, kcal: 180 })]);
+      expect(day.eatenKcal).toBe(180);
+    });
+
+    it("but a new row if the food's details changed since it was logged", async () => {
+      const egg = await idOf('Egg');
+      await addEntry({ foodId: egg, quantity: 1 });
+      await gql(UPDATE_FOOD, { id: egg, input: { kcalPerServing: 90 } }).expect(200);
+
+      const day = await addEntry({ foodId: egg, quantity: 1 });
+
+      // the first egg keeps the 72 kcal it was logged with
+      expect(day.entries.map((e: { kcalPerServing: number }) => e.kcalPerServing)).toEqual([72, 90]);
+    });
+
+    it('a new row on a different day, and quick adds never merge', async () => {
+      const egg = await idOf('Egg');
+      await addEntry({ foodId: egg, quantity: 1, date: YESTERDAY });
+      const today = await addEntry({ foodId: egg, quantity: 1 });
+      await gql(QUICK_ADD, { input: { kcal: 100 } }).expect(200);
+      const withQuick = (await gql(QUICK_ADD, { input: { kcal: 100 } }).expect(200)).body.data.quickAdd;
+
+      expect(today.entries).toHaveLength(1);
+      expect(withQuick.entries).toHaveLength(3); // the egg + two separate quick adds
     });
 
     it('goes negative when over target', async () => {

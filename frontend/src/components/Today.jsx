@@ -3,6 +3,7 @@ import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { getDailyLog, getRecentFoods, addLogEntry, quickAdd, updateLogEntry, deleteLogEntry } from '../api';
 import { addDays, dayLabel, longDate } from '../dates';
 import { useMediaQuery } from '../useMediaQuery';
+import { entryToAddTo } from '../logMatching';
 import DaySummary from './DaySummary';
 import LogEntryRow from './LogEntryRow';
 import QuantityForm from './QuantityForm';
@@ -135,6 +136,7 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
 
     const label = day && today ? dayLabel(day.date, today) : 'Today';
     const addLabel = label === 'Today' || label === 'Yesterday' ? `Add to ${label.toLowerCase()}` : `Add to ${label}`;
+    const onDay = label === 'Today' || label === 'Yesterday' ? label.toLowerCase() : `on ${label}`; // "today", "on Tue 13 Oct"
     const isToday = selectedDate === null;
 
     // What's in the sheet depends on what was tapped
@@ -150,7 +152,16 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
     else if (sheet?.type === 'add')
     {
         sheetTitle = 'Add food';
-        sheetContent = <QuantityForm item={sheet.food} submitLabel={addLabel} onSave={(q) => handleAdd(sheet.food, q)} />;
+        sheetContent = (
+            <QuantityForm
+                item={sheet.food}
+                submitLabel={addLabel}
+                onSave={(q) => handleAdd(sheet.food, q)}
+                // Already in this day's log? The sheet says so, and shows the total it will become
+                addsTo={day && entryToAddTo(day.entries, sheet.food)}
+                onDay={onDay}
+            />
+        );
     }
     else if (sheet?.type === 'edit')
     {

@@ -758,6 +758,13 @@ fieldset[aria-invalid='true'] .options {
   font-weight: 600;
 }
 
+/* "Egg is already logged today (1 large). This adds to it: 2 large in total." A divider, not a box. */
+.merge-note {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.9375rem;
+}
+
 .stepper {
   display: flex;
   align-items: center;

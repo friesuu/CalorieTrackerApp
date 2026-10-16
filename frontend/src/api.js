@@ -4,7 +4,7 @@ const PROFILE_FIELDS = `sex birthDate age heightCm weightKg activityLevel goal
   target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }`;
 const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG';
 const DAY_FIELDS = `date targetKcal eatenKcal remainingKcal proteinG carbsG fatG
-  entries { id foodId name servingSize servingUnit kcalPerServing quantity kcal }`;
+  entries { id foodId name servingSize servingUnit kcalPerServing proteinG carbsG fatG quantity kcal }`;
 
 // Validation errors keep their real messages in originalError (as an array);
 // other errors have a readable message directly.
