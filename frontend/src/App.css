@@ -782,6 +782,59 @@ fieldset[aria-invalid='true'] .options {
   white-space: nowrap;
 }
 
+/* ---------- Drag and drop ---------- */
+
+/* The moving copy (drawn in <body> by the drag library). The one shadow in the app, so it visibly lifts. */
+.drag-clone {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  box-shadow: var(--lift);
+}
+
+.chip.drag-clone {
+  border-radius: 999px;
+}
+
+/* The still copy left in the list while its food is dragged out: dragging copies, it doesn't move */
+.drag-copy {
+  opacity: 0.45;
+}
+
+/* The library and the recent chips only send foods out. The library would normally slide the other
+   items up to close the gap; the still copy fills it instead, so nothing should move. */
+.drag-source > li {
+  transform: none !important;
+}
+
+/* The log is the drop zone: a dashed outline shows up while dragging, and turns --accent with
+   an --accent-soft fill when a food is over it. outline (not border) so nothing jumps. */
+.drop-zone {
+  border-radius: var(--radius-card);
+  outline: 2px dashed transparent;
+  outline-offset: 4px;
+  transition: outline-color 0.15s ease, background-color 0.15s ease;
+}
+
+.drop-zone.ready {
+  outline-color: var(--muted);
+}
+
+.drop-zone.active {
+  outline-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.drop-zone.active > .card {
+  background-color: var(--accent-soft);
+}
+
+/* The gap the library adds while a food is over the log copies the dragged item's tag (an <li>):
+   outside a list it would show a bullet */
+.drop-zone > li {
+  list-style: none;
+}
+
 /* ---------- Loading and "can't connect" screens ---------- */
 
 .status-screen {

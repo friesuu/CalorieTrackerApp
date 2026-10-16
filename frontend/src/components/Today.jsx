@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { getDailyLog, getRecentFoods, addLogEntry, quickAdd, updateLogEntry, deleteLogEntry } from '../api';
 import { addDays, dayLabel, longDate } from '../dates';
 import { useMediaQuery } from '../useMediaQuery';
@@ -54,6 +55,7 @@ function Today({ foods, foodsError, onRetryFoods })
     const [recent, setRecent] = useState(null);
     // Which sheet is open: { type: 'pick' | 'add' | 'edit' | 'quick', ... } or null
     const [sheet, setSheet] = useState(null);
+    const [isDragging, setIsDragging] = useState(false); // a food is being dragged: show where to drop it
 
     // useCallback: the same function until the day changes, so the effects below only re-run then
     const loadDay = useCallback(() => {
@@ -117,6 +119,17 @@ function Today({ foods, foodsError, onRetryFoods })
 
     const pickFood = (food) => setSheet({ type: 'add', food });
     const openQuickAdd = (name) => setSheet({ type: 'quick', name });
+
+    // Dropped on the log: open "how many servings?" for that food, the same as tapping it.
+    // Draggable ids are 'library:12' or 'recent:12' (the food's id after the colon).
+    const handleDragEnd = ({ destination, draggableId }) => {
+        setIsDragging(false);
+        if (destination?.droppableId !== 'log') return; // dropped somewhere else, or Esc pressed
+
+        const id = Number(draggableId.split(':')[1]);
+        const food = foods?.find((f) => f.id === id) ?? recent?.find((f) => f.id === id);
+        if (food && day) pickFood(food);
+    };
 
     const label = day && today ? dayLabel(day.date, today) : 'Today';
     const addLabel = label === 'Today' || label === 'Yesterday' ? `Add to ${label.toLowerCase()}` : `Add to ${label}`;
@@ -194,75 +207,93 @@ function Today({ foods, foodsError, onRetryFoods })
                 <RecentFoods foods={recent} onPick={pickFood} />
 
                 <section className="day-log" aria-labelledby="log-title">
+                    {/* The heading says where to drop while a food is being dragged (no layout jump) */}
                     <h2 id="log-title" className="list-meta">
-                        {count === 0 ? 'Logged' : `Logged · ${count} ${count === 1 ? 'item' : 'items'}`}
+                        {isDragging ? 'Drop below to add' : count === 0 ? 'Logged' : `Logged · ${count} ${count === 1 ? 'item' : 'items'}`}
                     </h2>
-                    {count === 0 ? (
-                        <div className="card empty-state">
-                            <p><strong>{isToday ? 'Nothing logged yet today' : 'Nothing logged on this day'}</strong></p>
-                            <p className="muted">
-                                {isLaptop ? 'Pick a food from your library, or use quick add.' : 'Tap Add food, or use quick add for something not in your library.'}
-                            </p>
-                        </div>
-                    ) : (
-                        <ul className="card list-card">
-                            {day.entries.map((entry) => (
-                                <li key={entry.id}>
-                                    <button className="row-button" onClick={() => setSheet({ type: 'edit', entry })} aria-label={`Edit ${entry.name}`}>
-                                        <LogEntryRow entry={entry} />
-                                        <span className="row-chevron"><ChevronRightIcon size={18} /></span>
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+                    {/* The whole log is one drop zone. It holds no draggables: a dropped food is added at the end. */}
+                    <Droppable droppableId="log">
+                        {(provided, snapshot) => (
+                            <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className={`drop-zone${isDragging ? ' ready' : ''}${snapshot.isDraggingOver ? ' active' : ''}`}
+                            >
+                                {count === 0 ? (
+                                    <div className="card empty-state">
+                                        <p><strong>{isToday ? 'Nothing logged yet today' : 'Nothing logged on this day'}</strong></p>
+                                        <p className="muted">
+                                            {isLaptop ? 'Drag a food here from your library, or tap it to add.' : 'Tap Add food, or use quick add for something not in your library.'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <ul className="card list-card">
+                                        {day.entries.map((entry) => (
+                                            <li key={entry.id}>
+                                                <button className="row-button" onClick={() => setSheet({ type: 'edit', entry })} aria-label={`Edit ${entry.name}`}>
+                                                    <LogEntryRow entry={entry} />
+                                                    <span className="row-chevron"><ChevronRightIcon size={18} /></span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
                 </section>
             </>
         );
     }
 
+    // DragDropContext: everything that can be dragged (library, recent foods) and the log they're dropped on
+    // has to be inside the same one
     return (
-        <div className={isLaptop ? 'today-layout' : 'today-stack'}>
-            <div className="today-main">
-                {/* The title says which day is on screen; the arrows move a day at a time */}
-                <header className="page-header day-header">
-                    <div>
-                        <h1>{label}</h1>
-                        {day && <p className="muted">{longDate(day.date)}</p>}
-                    </div>
-                    <div className="day-arrows">
-                        {!isToday && day && (
-                            <button className="btn" onClick={() => goToDate(today)}>Today</button>
-                        )}
-                        <button className="icon-btn" aria-label="Previous day" disabled={!day} onClick={() => goToDate(addDays(day.date, -1))}>
-                            <ChevronLeftIcon />
-                        </button>
-                        <button className="icon-btn" aria-label="Next day" disabled={!day || isToday} onClick={() => goToDate(addDays(day.date, 1))}>
-                            <ChevronRightIcon />
-                        </button>
-                    </div>
-                </header>
+        <DragDropContext onDragStart={() => setIsDragging(true)} onDragEnd={handleDragEnd}>
+            <div className={isLaptop ? 'today-layout' : 'today-stack'}>
+                <div className="today-main">
+                    {/* The title says which day is on screen; the arrows move a day at a time */}
+                    <header className="page-header day-header">
+                        <div>
+                            <h1>{label}</h1>
+                            {day && <p className="muted">{longDate(day.date)}</p>}
+                        </div>
+                        <div className="day-arrows">
+                            {!isToday && day && (
+                                <button className="btn" onClick={() => goToDate(today)}>Today</button>
+                            )}
+                            <button className="icon-btn" aria-label="Previous day" disabled={!day} onClick={() => goToDate(addDays(day.date, -1))}>
+                                <ChevronLeftIcon />
+                            </button>
+                            <button className="icon-btn" aria-label="Next day" disabled={!day || isToday} onClick={() => goToDate(addDays(day.date, 1))}>
+                                <ChevronRightIcon />
+                            </button>
+                        </div>
+                    </header>
 
-                {content}
+                    {content}
+                </div>
+
+                {isLaptop && (
+                    <aside className="card library-panel" aria-labelledby="library-title">
+                        <h2 id="library-title" className="section-title">Your foods</h2>
+                        <FoodPicker
+                            foods={foods}
+                            loadError={foodsError}
+                            onRetry={onRetryFoods}
+                            onPick={(food) => day && pickFood(food)}
+                            onQuickAdd={(name) => day && openQuickAdd(name)}
+                            draggable
+                        />
+                    </aside>
+                )}
+
+                <Sheet title={sheetTitle} isOpen={sheet !== null} onClose={() => setSheet(null)}>
+                    {sheetContent}
+                </Sheet>
             </div>
-
-            {isLaptop && (
-                <aside className="card library-panel" aria-labelledby="library-title">
-                    <h2 id="library-title" className="section-title">Your foods</h2>
-                    <FoodPicker
-                        foods={foods}
-                        loadError={foodsError}
-                        onRetry={onRetryFoods}
-                        onPick={(food) => day && pickFood(food)}
-                        onQuickAdd={(name) => day && openQuickAdd(name)}
-                    />
-                </aside>
-            )}
-
-            <Sheet title={sheetTitle} isOpen={sheet !== null} onClose={() => setSheet(null)}>
-                {sheetContent}
-            </Sheet>
-        </div>
+        </DragDropContext>
     );
 }
 
