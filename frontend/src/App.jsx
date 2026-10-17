@@ -108,7 +108,7 @@ function App()
     return saved;
   };
 
-  // The meal split (and later the exercise setting): same idea, a separate form on the Profile page
+  // The meal split and the exercise setting: same idea, separate forms on the Profile page
   const handleSaveSettings = async (input) => {
     const saved = await saveSettings(input);
     setProfile(saved);

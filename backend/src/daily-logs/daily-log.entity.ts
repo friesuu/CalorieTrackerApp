@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { LogEntry } from './log-entry.entity';
+import { Exercise } from './exercise.entity';
 import { SPLIT_ADDS_UP } from '../profiles/meal-split';
 
 // One day of eating for one person. Made when the first thing is logged that day,
@@ -48,9 +49,19 @@ export class DailyLog {
   @Column({ name: 'snack_pct', type: 'int', default: 10 })
   snackPct: number;
 
+  // Add the calories burned in exercise to this day's budget? Copied from the profile setting when the day
+  // is made (like targetKcal), so turning it on or off later doesn't re-judge past days.
+  @Field()
+  @Column({ name: 'exercise_in_budget', type: 'boolean', default: false })
+  exerciseInBudget: boolean;
+
   @Field(() => [LogEntry])
   @OneToMany(() => LogEntry, (entry) => entry.dailyLog)
   entries: LogEntry[];
+
+  @Field(() => [Exercise])
+  @OneToMany(() => Exercise, (exercise) => exercise.dailyLog)
+  exercises: Exercise[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

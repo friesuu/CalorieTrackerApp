@@ -747,6 +747,27 @@ fieldset[aria-invalid='true'] .options {
   font-size: 0.875rem;
 }
 
+/* How "remaining" was worked out: 2,161 target + 300 exercise − 1,502 eaten = 959 left */
+.summary-formula {
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* Under the exercise rows, or on its own when there's none yet */
+.exercise-add {
+  align-self: flex-start;
+}
+
+/* A setting that saves as soon as it's changed (Profile → Exercise) */
+.setting-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .day-actions {
   display: flex;
   gap: 12px;
@@ -1120,6 +1141,14 @@ fieldset[aria-invalid='true'] .options {
 .history-status.over {
   color: var(--over);
   font-weight: 500;
+}
+
+/* "Burned 300 kcal · added to the budget": its own line under the bar, only on days with exercise */
+.history-burned {
+  grid-column: 1 / -1;
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 0.8125rem;
 }
 
 /* ---------- Log in / sign up: one centred column, like the first run ---------- */

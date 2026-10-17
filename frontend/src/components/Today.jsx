@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import { getDailyLog, getRecentFoods, addLogEntry, quickAdd, updateLogEntry, deleteLogEntry } from '../api';
+import {
+    getDailyLog, getRecentFoods, addLogEntry, quickAdd, updateLogEntry, deleteLogEntry,
+    addExercise, updateExercise, deleteExercise,
+} from '../api';
 import { addDays, dayLabel, longDate, shortDate } from '../dates';
 import { useMediaQuery } from '../useMediaQuery';
 import { useNewDay } from '../useNewDay';
@@ -10,6 +13,8 @@ import DaySummary from './DaySummary';
 import MealCard from './MealCard';
 import MealSummary from './MealSummary';
 import EntryList from './EntryList';
+import ExerciseSection from './ExerciseSection';
+import ExerciseForm from './ExerciseForm';
 import QuantityForm from './QuantityForm';
 import QuickAddForm from './QuickAddForm';
 import FoodPicker from './FoodPicker';
@@ -17,7 +22,7 @@ import RecentFoods from './RecentFoods';
 import Sheet from './Sheet';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from './Icons';
 
-// Removing an entry needs no "are you sure?": it's one item, and easy to add again
+// Removing an entry (or an exercise) needs no "are you sure?": it's one item, and easy to add again
 function RemoveButton({ onRemove })
 {
     const [error, setError] = useState(null);
@@ -47,7 +52,7 @@ function RemoveButton({ onRemove })
     );
 }
 
-// The daily log: what's left today, the four meals, and adding more. Tap a meal to open it.
+// The daily log: what's left today, the four meals, exercise, and adding more. Tap a meal to open it.
 // Its data (the day) lives here, not in App: no other page needs it.
 // foods (the library) comes from App, because the Foods page uses the same list.
 // initialDate / initialToday: set when a day is opened from the History page
@@ -62,7 +67,7 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
     const [recent, setRecent] = useState(null);
     // The meal that's open ('BREAKFAST' ...), or null for the overview of the day
     const [openMeal, setOpenMeal] = useState(null);
-    // Which sheet is open: { type: 'pick' | 'add' | 'edit' | 'quick', ... } or null
+    // Which sheet is open: { type: 'pick' | 'add' | 'edit' | 'quick' | 'exercise', ... } or null
     const [sheet, setSheet] = useState(null);
     const [isDragging, setIsDragging] = useState(false); // a food is being dragged: show where to drop it
 
@@ -136,6 +141,11 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
     };
     const handleQuickAdd = (input) => applyChange(quickAdd({ ...input, date: day.date }));
     const handleRemoveEntry = (entry) => applyChange(deleteLogEntry(entry.id));
+    // A new exercise goes on the day on screen; a changed one stays on its own day
+    const handleSaveExercise = (exercise, input) => applyChange(
+        exercise ? updateExercise(exercise.id, input) : addExercise({ ...input, date: day.date }),
+    );
+    const handleRemoveExercise = (exercise) => applyChange(deleteExercise(exercise.id));
 
     // Only what changed is sent. Nothing changed: just close the sheet.
     const handleUpdateEntry = async (entry, quantity, meal) => {
@@ -215,6 +225,21 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
                     findMerge={(meal, q) => entryToMoveTo(day.entries, sheet.entry, meal, q)}
                 />
                 <RemoveButton onRemove={() => handleRemoveEntry(sheet.entry)} />
+            </div>
+        );
+    }
+    else if (sheet?.type === 'exercise')
+    {
+        const { exercise } = sheet; // null = logging a new one
+        sheetTitle = exercise ? 'Edit exercise' : 'Log exercise';
+        sheetContent = (
+            <div className="sheet-stack">
+                <ExerciseForm
+                    exercise={exercise}
+                    submitLabel={exercise ? 'Save' : isToday ? 'Log exercise' : `Log for ${dayWord}`}
+                    onSave={(input) => handleSaveExercise(exercise, input)}
+                />
+                {exercise && <RemoveButton onRemove={() => handleRemoveExercise(exercise)} />}
             </div>
         );
     }
@@ -349,7 +374,7 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
             const unsorted = day.unsortedEntries.length;
             content = (
                 <>
-                    <DaySummary day={day} />
+                    <DaySummary day={day} isToday={isToday} />
                     {actions}
                     <RecentFoods foods={recent} onPick={(food) => pickFood(food)} />
 
@@ -376,6 +401,12 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
                             <EntryList entries={day.unsortedEntries} onEdit={editEntry} />
                         </section>
                     )}
+
+                    <ExerciseSection
+                        day={day}
+                        onAdd={() => setSheet({ type: 'exercise', exercise: null })}
+                        onEdit={(exercise) => setSheet({ type: 'exercise', exercise })}
+                    />
                 </>
             );
         }

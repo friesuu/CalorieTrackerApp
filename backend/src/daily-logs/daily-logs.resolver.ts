@@ -5,7 +5,7 @@ import { DailyLogsService } from './daily-logs.service';
 import { AddLogEntryDto } from './add-log-entry.dto';
 import { QuickAddDto } from './quick-add.dto';
 import { UpdateLogEntryDto } from './update-log-entry.dto';
-import { eatenKcal, macroTotal } from './totals';
+import { budgetKcal, burnedKcal, eatenKcal, macroTotal } from './totals';
 import { Week } from './week.types';
 import { MealSummary } from './meal-summary.types';
 import { MEALS_IN_ORDER } from './meal.enum';
@@ -75,10 +75,21 @@ export class DailyLogsResolver {
     return eatenKcal(day.entries);
   }
 
-  // Negative = over target
+  @ResolveField(() => Int)
+  burnedKcal(@Parent() day: DailyLog): number {
+    return burnedKcal(day.exercises);
+  }
+
+  // What you can eat that day: the target, + exercise when the day adds it (see totals.ts)
+  @ResolveField(() => Int)
+  budgetKcal(@Parent() day: DailyLog): number {
+    return budgetKcal(day);
+  }
+
+  // budget − eaten. Negative = over.
   @ResolveField(() => Int)
   remainingKcal(@Parent() day: DailyLog): number {
-    return day.targetKcal - eatenKcal(day.entries);
+    return budgetKcal(day) - eatenKcal(day.entries);
   }
 
   // Always all four meals, in order, each with its share of the target (the split that day)

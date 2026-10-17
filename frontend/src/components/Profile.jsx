@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ProfileForm from './ProfileForm';
 import TargetCard from './TargetCard';
 import MealSplitForm from './MealSplitForm';
+import ExerciseSetting from './ExerciseSetting';
 import ChangePasswordForm from './ChangePasswordForm';
 import Sheet from './Sheet';
 import Avatar from './Avatar';
@@ -56,7 +57,8 @@ function AccountCard({ user, onChangePassword, onLogout })
     );
 }
 
-// The Profile page: your account, the target and how it's worked out, then the details and meal split to edit.
+// The Profile page: your account, the target and how it's worked out, then the details, meal split and
+// exercise setting to edit.
 // Saving goes through App (onSave, onSaveSettings), so the new target shows everywhere at once.
 function Profile({ user, profile, onSave, onSaveSettings, onChangePassword, onLogout })
 {
@@ -76,6 +78,11 @@ function Profile({ user, profile, onSave, onSaveSettings, onChangePassword, onLo
                 <section className="profile-details" aria-labelledby="split-title">
                     <h2 id="split-title" className="section-title">Meal split</h2>
                     <MealSplitForm profile={profile} onSave={onSaveSettings} />
+                </section>
+
+                <section className="profile-details" aria-labelledby="exercise-setting-title">
+                    <h2 id="exercise-setting-title" className="section-title">Exercise</h2>
+                    <ExerciseSetting profile={profile} onSave={onSaveSettings} />
                 </section>
             </div>
         </div>

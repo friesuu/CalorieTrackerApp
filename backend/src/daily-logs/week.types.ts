@@ -13,6 +13,14 @@ export class DaySummary {
   @Field(() => Int, { nullable: true })
   targetKcal: number | null;
 
+  // Calories burned in exercise that day (0 = none logged)
+  @Field(() => Int)
+  burnedKcal: number;
+
+  // The target, plus the exercise if that day added it to the budget. null like targetKcal.
+  @Field(() => Int, { nullable: true })
+  budgetKcal: number | null;
+
   // Something was eaten and logged that day. A day whose entries were all removed counts as not logged.
   @Field()
   logged: boolean;
@@ -40,4 +48,11 @@ export class Week {
 
   @Field(() => Int, { nullable: true })
   averageTargetKcal: number | null;
+
+  // Over the same logged days, so it lines up with averageKcal
+  @Field(() => Int, { nullable: true })
+  averageBudgetKcal: number | null;
+
+  @Field(() => Int, { nullable: true })
+  averageBurnedKcal: number | null;
 }

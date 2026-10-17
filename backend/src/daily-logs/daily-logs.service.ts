@@ -12,7 +12,7 @@ import { ProfilesService } from '../profiles/profiles.service';
 import { FoodsService } from '../foods/foods.service';
 import { Week } from './week.types';
 import { MealSplitColumns, splitColumns, splitOf } from '../profiles/meal-split';
-import { eatenKcal } from './totals';
+import { budgetKcal, burnedKcal, eatenKcal } from './totals';
 import { addDays, isRealDate, todayIn } from '../common/dates';
 
 const RECENT_FOODS = 8;
@@ -51,23 +51,30 @@ export class DailyLogsService {
     private readonly foodsService: FoodsService,
   ) {}
 
-  // One day's log, entries in the order they were added.
+  // One day's log, entries and exercise in the order they were added.
   // A day with nothing logged has no row yet: it comes back empty, with the current target.
   async findDay(user: User, date?: string | null): Promise<DailyLog> {
     const logDate = this.checkDate(user, date);
     const day = await this.dailyLogsRepository.findOne({
       where: { ownerId: user.id, logDate },
-      relations: { entries: true },
-      order: { entries: { createdAt: 'ASC', id: 'ASC' } },
+      relations: { entries: true, exercises: true },
+      order: { entries: { createdAt: 'ASC', id: 'ASC' }, exercises: { createdAt: 'ASC', id: 'ASC' } },
     });
     if (day) return day;
 
     return this.dailyLogsRepository.create({
       ownerId: user.id,
       logDate,
-      ...(await this.currentPlan(user)), // today's target and meal split, from the profile
+      ...(await this.currentPlan(user)), // today's target, meal split and exercise setting, from the profile
       entries: [],
+      exercises: [],
     });
+  }
+
+  // The day's row to log something on (made if it's the first thing that day). No date = today; never the future.
+  // Public for ExercisesService, which logs on days too.
+  dayToLogOn(user: User, date?: string | null): Promise<DailyLog> {
+    return this.findOrCreateDay(user, this.checkDate(user, date));
   }
 
   // Log a library food. Its name, serving and calories are COPIED into the entry,
@@ -75,7 +82,7 @@ export class DailyLogsService {
   async addEntry(dto: AddLogEntryDto, user: User): Promise<DailyLog> {
     const food = await this.foodsService.findUsable(dto.foodId, user.id); // your own or a starter food
 
-    const day = await this.findOrCreateDay(user, this.checkDate(user, dto.date));
+    const day = await this.dayToLogOn(user, dto.date);
 
     // Already in this MEAL? Add to its servings: one "Egg, 3 large" row, not three "Egg" rows.
     // (The same food at breakfast and at lunch stays two rows.) Only when the logged copy still matches
@@ -112,7 +119,7 @@ export class DailyLogsService {
 
   // Calories without a library food: one "serving" of that many kcal
   async quickAdd(dto: QuickAddDto, user: User): Promise<DailyLog> {
-    const day = await this.findOrCreateDay(user, this.checkDate(user, dto.date));
+    const day = await this.dayToLogOn(user, dto.date);
     await this.logEntriesRepository.save(
       this.logEntriesRepository.create({
         dailyLogId: day.id,
@@ -197,7 +204,7 @@ export class DailyLogsService {
 
     const logs = await this.dailyLogsRepository.find({
       where: { ownerId: user.id, logDate: Between(start, end) },
-      relations: { entries: true },
+      relations: { entries: true, exercises: true },
     });
 
     const days = [0, 1, 2, 3, 4, 5, 6].map((offset) => {
@@ -207,6 +214,9 @@ export class DailyLogsService {
         date,
         eatenKcal: log ? eatenKcal(log.entries) : 0,
         targetKcal: log ? log.targetKcal : null,
+        burnedKcal: log ? burnedKcal(log.exercises) : 0,
+        budgetKcal: log ? budgetKcal(log) : null,
+        // Only eating counts: a day with exercise but no food logged wasn't a day you ate 0
         logged: Boolean(log && log.entries.length > 0),
       };
     });
@@ -222,6 +232,8 @@ export class DailyLogsService {
       loggedDays: logged.length,
       averageKcal: average(logged.map((d) => d.eatenKcal)),
       averageTargetKcal: average(logged.map((d) => d.targetKcal as number)),
+      averageBudgetKcal: average(logged.map((d) => d.budgetKcal as number)),
+      averageBurnedKcal: average(logged.map((d) => d.burnedKcal)),
     };
   }
 
@@ -254,8 +266,9 @@ export class DailyLogsService {
     return this.dailyLogsRepository.findOneByOrFail({ ownerId: user.id, logDate });
   }
 
-  // What a new day starts with: the target and the meal split as they are now (both copied into the day)
-  private async currentPlan(user: User): Promise<{ targetKcal: number } & MealSplitColumns> {
+  // What a new day starts with: the target, the meal split and the exercise setting as they are now
+  // (all copied into the day)
+  private async currentPlan(user: User): Promise<{ targetKcal: number; exerciseInBudget: boolean } & MealSplitColumns> {
     const profile = await this.profilesService.findForUser(user.id);
     if (!profile) {
       throw new BadRequestException('Set up your profile first');
@@ -263,6 +276,7 @@ export class DailyLogsService {
     return {
       targetKcal: this.profilesService.targetFor(profile, user).targetKcal,
       ...splitColumns(splitOf(profile)),
+      exerciseInBudget: profile.exerciseInBudget,
     };
   }
 

@@ -1,4 +1,6 @@
 import { LogEntry } from './log-entry.entity';
+import { Exercise } from './exercise.entity';
+import { DailyLog } from './daily-log.entity';
 
 // Totals are worked out when asked for, never stored, so they can't get out of step with the entries.
 
@@ -10,6 +12,17 @@ export function entryKcal(entry: LogEntry): number {
 // A day's calories: the sum of the ROUNDED entries, so the rows on screen always add up to the total
 export function eatenKcal(entries: LogEntry[]): number {
   return entries.reduce((sum, entry) => sum + entryKcal(entry), 0);
+}
+
+// A day's calories burned in exercise
+export function burnedKcal(exercises: Exercise[]): number {
+  return exercises.reduce((sum, exercise) => sum + exercise.kcal, 0);
+}
+
+// What you can eat that day: the target, plus exercise when that day adds it (exerciseInBudget).
+// The whole day's budget: the meals keep their share of the target, exercise isn't split between them.
+export function budgetKcal(day: Pick<DailyLog, 'targetKcal' | 'exerciseInBudget' | 'exercises'>): number {
+  return day.targetKcal + (day.exerciseInBudget ? burnedKcal(day.exercises) : 0);
 }
 
 // A day's grams of one macro, from the entries that have it. null = no entry has it (most people don't track).

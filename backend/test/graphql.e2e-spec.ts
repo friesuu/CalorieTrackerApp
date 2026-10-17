@@ -19,7 +19,7 @@ const STARTER_FOODS = ['Apple', 'Banana', 'Egg', 'Full cream milk', 'White bread
 const PROFILE_FIELDS = `
   sex birthDate age heightCm weightKg activityLevel goal
   target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }
-  mealSplit { breakfast lunch dinner snack }
+  mealSplit { breakfast lunch dinner snack } exerciseInBudget
 `;
 
 const SAVE_SETTINGS = `
@@ -71,6 +71,8 @@ const DAY_FIELDS = `
   entries { id foodId name servingSize servingUnit kcalPerServing quantity kcal meal }
   meals { meal targetKcal eatenKcal entries { id name quantity } }
   unsortedEntries { id name }
+  exerciseInBudget burnedKcal budgetKcal
+  exercises { id name minutes kcal }
 `;
 
 const DAILY_LOG = `
@@ -103,11 +105,31 @@ const DELETE_LOG_ENTRY = `
   }
 `;
 
+const ADD_EXERCISE = `
+  mutation AddExercise($input: AddExerciseInput!) {
+    addExercise(input: $input) { ${DAY_FIELDS} }
+  }
+`;
+
+const UPDATE_EXERCISE = `
+  mutation UpdateExercise($id: Int!, $input: ExerciseInput!) {
+    updateExercise(id: $id, input: $input) { ${DAY_FIELDS} }
+  }
+`;
+
+const DELETE_EXERCISE = `
+  mutation DeleteExercise($id: Int!) {
+    deleteExercise(id: $id) { ${DAY_FIELDS} }
+  }
+`;
+
+const RUN = { name: 'Running', minutes: 30, kcal: 300 };
+
 const WEEK = `
   query Week($endDate: String) {
     week(endDate: $endDate) {
-      startDate endDate loggedDays averageKcal averageTargetKcal
-      days { date eatenKcal targetKcal logged }
+      startDate endDate loggedDays averageKcal averageTargetKcal averageBudgetKcal averageBurnedKcal
+      days { date eatenKcal targetKcal burnedKcal budgetKcal logged }
     }
   }
 `;
@@ -594,6 +616,10 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
           { meal: 'SNACK', targetKcal: 216, eatenKcal: 0, entries: [] },
         ],
         unsortedEntries: [],
+        exerciseInBudget: false,
+        burnedKcal: 0,
+        budgetKcal: 2161,
+        exercises: [],
       });
     });
 
@@ -782,9 +808,9 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
 
       const week = (await gql(WEEK).expect(200)).body.data.week;
 
-      expect(week.days[6]).toEqual({ date: TODAY, eatenKcal: 2100, targetKcal: 2161, logged: true });
-      expect(week.days[4]).toEqual({ date: addDays(TODAY, -2), eatenKcal: 1500, targetKcal: 2161, logged: true });
-      expect(week.days[5]).toEqual({ date: addDays(TODAY, -1), eatenKcal: 0, targetKcal: null, logged: false });
+      expect(week.days[6]).toEqual({ date: TODAY, eatenKcal: 2100, targetKcal: 2161, burnedKcal: 0, budgetKcal: 2161, logged: true });
+      expect(week.days[4]).toEqual({ date: addDays(TODAY, -2), eatenKcal: 1500, targetKcal: 2161, burnedKcal: 0, budgetKcal: 2161, logged: true });
+      expect(week.days[5]).toEqual({ date: addDays(TODAY, -1), eatenKcal: 0, targetKcal: null, burnedKcal: 0, budgetKcal: null, logged: false });
     });
 
     it('averages only the days that were logged', async () => {
@@ -954,6 +980,130 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
     });
   });
 
+  describe('exercise', () => {
+    const YESTERDAY = addDays(TODAY, -1);
+
+    // The 2,161 kcal profile. Exercise isn't added to the budget unless a test turns it on.
+    beforeEach(async () => {
+      await resetFoods();
+      await gql(SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
+    });
+
+    const addExercise = async (input: Record<string, unknown>) => {
+      const res = await gql(ADD_EXERCISE, { input }).expect(200);
+      expect(res.body.errors).toBeUndefined();
+      return res.body.data.addExercise;
+    };
+
+    const budgetOn = async () => {
+      const res = await gql(SAVE_SETTINGS, { input: { exerciseInBudget: true } }).expect(200);
+      expect(res.body.errors).toBeUndefined();
+      return res.body.data.saveSettings;
+    };
+
+    it('logs exercise on today and adds up what was burned (minutes are optional)', async () => {
+      await addExercise(RUN);
+      const day = await addExercise({ name: 'Walk', kcal: 120 });
+
+      expect(day.date).toBe(TODAY);
+      expect(day.exercises).toEqual([
+        { id: expect.any(Number), name: 'Running', minutes: 30, kcal: 300 },
+        { id: expect.any(Number), name: 'Walk', minutes: null, kcal: 120 },
+      ]);
+      expect(day.burnedKcal).toBe(420);
+    });
+
+    it('is left out of the budget by default: remaining = target − eaten', async () => {
+      await gql(QUICK_ADD, { input: { meal: 'LUNCH', kcal: 700 } }).expect(200);
+      const day = await addExercise(RUN);
+
+      expect((await gql(PROFILE).expect(200)).body.data.profile.exerciseInBudget).toBe(false);
+      expect(day.exerciseInBudget).toBe(false);
+      expect(day.budgetKcal).toBe(2161);
+      expect(day.remainingKcal).toBe(1461);
+    });
+
+    it("turned on, it's added to the day's budget: remaining = target + exercise − eaten", async () => {
+      const profile = await budgetOn();
+      await gql(QUICK_ADD, { input: { meal: 'LUNCH', kcal: 700 } }).expect(200);
+      const day = await addExercise(RUN);
+
+      expect(profile.exerciseInBudget).toBe(true);
+      expect(day.exerciseInBudget).toBe(true);
+      expect(day.budgetKcal).toBe(2461);
+      expect(day.remainingKcal).toBe(1761);
+      // For the whole day: the meals keep their share of the target
+      expect(day.meals.map((m: { targetKcal: number }) => m.targetKcal)).toEqual([540, 757, 648, 216]);
+    });
+
+    it('turning it on changes today, but not days already logged', async () => {
+      await addExercise({ ...RUN, date: YESTERDAY });
+      await addExercise(RUN);
+
+      await budgetOn();
+
+      const today = (await gql(DAILY_LOG).expect(200)).body.data.dailyLog;
+      const yesterday = (await gql(DAILY_LOG, { date: YESTERDAY }).expect(200)).body.data.dailyLog;
+      expect(today.budgetKcal).toBe(2461);
+      expect(yesterday.exerciseInBudget).toBe(false);
+      expect(yesterday.budgetKcal).toBe(2161);
+    });
+
+    it('changes an exercise (all three sent again, so no minutes = cleared), or removes it', async () => {
+      const id = (await addExercise(RUN)).exercises[0].id;
+
+      const changed = await gql(UPDATE_EXERCISE, { id, input: { name: 'Cycling', kcal: 450 } }).expect(200);
+      const removed = await gql(DELETE_EXERCISE, { id }).expect(200);
+
+      expect(changed.body.errors).toBeUndefined();
+      expect(changed.body.data.updateExercise.exercises).toEqual([{ id, name: 'Cycling', minutes: null, kcal: 450 }]);
+      expect(changed.body.data.updateExercise.burnedKcal).toBe(450);
+      expect(removed.body.data.deleteExercise.exercises).toEqual([]);
+      expect(removed.body.data.deleteExercise.burnedKcal).toBe(0);
+    });
+
+    it('needs a name, 1 to 5,000 kcal, and (if given) at least a minute', async () => {
+      const inputs = [
+        { ...RUN, name: '   ' },
+        { ...RUN, kcal: 0 },
+        { ...RUN, kcal: 5001 },
+        { ...RUN, minutes: 0 },
+      ];
+
+      for (const input of inputs) {
+        const res = await gql(ADD_EXERCISE, { input }).expect(200);
+        expect(res.body.errors).toBeDefined();
+      }
+      expect((await gql(DAILY_LOG).expect(200)).body.data.dailyLog.exercises).toEqual([]);
+    });
+
+    it("can be logged on an earlier day, but not a future one; a wrong id isn't found", async () => {
+      const yesterday = await addExercise({ ...RUN, date: YESTERDAY });
+      const future = await gql(ADD_EXERCISE, { input: { ...RUN, date: addDays(TODAY, 1) } }).expect(200);
+      const missing = await gql(DELETE_EXERCISE, { id: 999999 }).expect(200);
+
+      expect(yesterday.date).toBe(YESTERDAY);
+      expect(future.body.errors[0].message).toBe("You can't log a day in the future");
+      expect(missing.body.errors[0].message).toBe('Exercise 999999 not found');
+    });
+
+    it("the week shows what was burned each day, and averages it over the days you logged food", async () => {
+      await budgetOn();
+      await gql(QUICK_ADD, { input: { meal: 'LUNCH', kcal: 2000 } }).expect(200);
+      await addExercise(RUN);
+      await gql(QUICK_ADD, { input: { meal: 'LUNCH', kcal: 1500, date: YESTERDAY } }).expect(200);
+      await addExercise({ name: 'Swim', kcal: 200, date: addDays(TODAY, -2) }); // exercise, but no food logged
+
+      const week = (await gql(WEEK).expect(200)).body.data.week;
+
+      expect(week.days[6]).toEqual({ date: TODAY, eatenKcal: 2000, targetKcal: 2161, burnedKcal: 300, budgetKcal: 2461, logged: true });
+      expect(week.days[4]).toMatchObject({ burnedKcal: 200, budgetKcal: 2361, logged: false });
+      expect(week.loggedDays).toBe(2);
+      expect(week.averageBurnedKcal).toBe(150); // (300 + 0) / 2: the swim day had no food logged
+      expect(week.averageBudgetKcal).toBe(2311); // (2461 + 2161) / 2
+    });
+  });
+
   describe('privacy', () => {
     beforeEach(async () => {
       await resetFoods();
@@ -968,6 +1118,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
         [CREATE_FOOD, { input: ROTI_CANAI }],
         [DAILY_LOG],
         [QUICK_ADD, { input: { meal: 'SNACK', kcal: 100 } }],
+        [ADD_EXERCISE, { input: RUN }],
         [WEEK],
         [RECENT_FOODS],
         [ME],
@@ -1009,6 +1160,21 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
       expect(edit.body.errors[0].message).toBe(`Entry ${entryId} not found`);
       expect(remove.body.errors[0].message).toBe(`Entry ${entryId} not found`);
       expect((await logEntriesRepository.findOneByOrFail({ id: entryId })).quantity).toBe(2); // unchanged
+    });
+
+    it("another user can't see, change or remove your exercise", async () => {
+      const day = (await gql(ADD_EXERCISE, { input: RUN }).expect(200)).body.data.addExercise;
+      const id = day.exercises[0].id;
+      await gqlAs(otherCookie, SAVE_PROFILE, { input: PROFILE_INPUT }).expect(200);
+
+      const theirDay = await gqlAs(otherCookie, DAILY_LOG).expect(200);
+      const edit = await gqlAs(otherCookie, UPDATE_EXERCISE, { id, input: { name: 'Mine now', kcal: 1 } }).expect(200);
+      const remove = await gqlAs(otherCookie, DELETE_EXERCISE, { id }).expect(200);
+
+      expect(theirDay.body.data.dailyLog.exercises).toEqual([]);
+      expect(edit.body.errors[0].message).toBe(`Exercise ${id} not found`);
+      expect(remove.body.errors[0].message).toBe(`Exercise ${id} not found`);
+      expect((await gql(DAILY_LOG).expect(200)).body.data.dailyLog.exercises).toEqual([{ id, ...RUN }]); // unchanged
     });
 
     it('each user has their own profile and history', async () => {

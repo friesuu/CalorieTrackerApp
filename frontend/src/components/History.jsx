@@ -5,24 +5,35 @@ import { addDays, dayLabel, weekRange } from '../dates';
 import { formatKcal } from '../numbers';
 import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
 
-// One day: its total against that day's target, as a thin bar plus the same thing in words.
-// The words carry the meaning (over / under / not logged); the colour only repeats it.
+// "Burned 300 kcal · added to the budget", or null for a day with no exercise
+function burnedText(day)
+{
+    if (day.burnedKcal === 0) return null;
+    const added = day.budgetKcal > day.targetKcal; // that day added exercise to its budget
+    return `Burned ${formatKcal(day.burnedKcal)} kcal${added ? ' · added to the budget' : ''}`;
+}
+
+// One day: its total against that day's budget (the target, + exercise if that day added it),
+// as a thin bar plus the same thing in words. The words carry the meaning (over / under / not logged);
+// the colour only repeats it.
 function DayRow({ day, today, onOpen })
 {
-    const isOver = day.logged && day.eatenKcal > day.targetKcal;
-    const difference = day.logged ? Math.abs(day.eatenKcal - day.targetKcal) : 0;
-    const filled = day.logged ? Math.min(day.eatenKcal / day.targetKcal, 1) * 100 : 0;
+    const isOver = day.logged && day.eatenKcal > day.budgetKcal;
+    const difference = day.logged ? Math.abs(day.eatenKcal - day.budgetKcal) : 0;
+    const filled = day.logged ? Math.min(day.eatenKcal / day.budgetKcal, 1) * 100 : 0;
+    const burned = burnedText(day);
 
     let status = 'Not logged';
     if (day.logged) status = isOver ? `Over by ${formatKcal(difference)}` : `${formatKcal(difference)} under`;
+    const spoken = day.logged ? `${formatKcal(day.eatenKcal)} of ${formatKcal(day.budgetKcal)} kcal, ${status}` : status;
 
     return (
-        <button className="row-button" onClick={() => onOpen(day.date)} aria-label={`${dayLabel(day.date, today)}: ${day.logged ? `${formatKcal(day.eatenKcal)} of ${formatKcal(day.targetKcal)} kcal, ${status}` : status}. Open this day.`}>
+        <button className="row-button" onClick={() => onOpen(day.date)} aria-label={`${dayLabel(day.date, today)}: ${spoken}${burned ? `. ${burned}` : ''}. Open this day.`}>
             <span className="history-row">
                 <span className="history-day">{dayLabel(day.date, today)}</span>
                 <span className="history-kcal num">
                     {day.logged ? (
-                        <><strong>{formatKcal(day.eatenKcal)}</strong> / {formatKcal(day.targetKcal)} kcal</>
+                        <><strong>{formatKcal(day.eatenKcal)}</strong> / {formatKcal(day.budgetKcal)} kcal</>
                     ) : '–'}
                 </span>
                 {/* aria-hidden: the button's label already says all of this in words */}
@@ -30,6 +41,7 @@ function DayRow({ day, today, onOpen })
                     {day.logged && <span className={isOver ? 'meter-fill over' : 'meter-fill'} style={{ width: `${filled}%` }} />}
                 </span>
                 <span className={isOver ? 'history-status over' : 'history-status'}>{status}</span>
+                {burned && <span className="history-burned num">{burned}</span>}
             </span>
         </button>
     );
@@ -90,7 +102,10 @@ function History({ onOpenDay })
     }
     else
     {
-        const difference = week.averageKcal === null ? 0 : week.averageKcal - week.averageTargetKcal;
+        // Against the average budget: the same as the target unless exercise was added to it
+        const difference = week.averageKcal === null ? 0 : week.averageKcal - week.averageBudgetKcal;
+        const addsExercise = week.averageBudgetKcal !== week.averageTargetKcal;
+        const versus = addsExercise ? 'budget' : 'target';
         content = (
             <>
                 {week.loggedDays === 0 ? (
@@ -106,11 +121,19 @@ function History({ onOpenDay })
                         </p>
                         <p className="summary-totals">
                             {difference > 0
-                                ? `${formatKcal(difference)} kcal over target on average`
-                                : `${formatKcal(-difference)} kcal under target on average`}
+                                ? `${formatKcal(difference)} kcal over ${versus} on average`
+                                : `${formatKcal(-difference)} kcal under ${versus} on average`}
                         </p>
+                        {week.averageBurnedKcal > 0 && (
+                            <p className="summary-formula num">
+                                {formatKcal(week.averageBurnedKcal)} kcal a day burned in exercise
+                                {addsExercise
+                                    ? ` (budget ${formatKcal(week.averageBudgetKcal)} = target ${formatKcal(week.averageTargetKcal)} + exercise)`
+                                    : ', not added to your budget'}
+                            </p>
+                        )}
                         <p className="summary-macros">
-                            Average of the {week.loggedDays} {week.loggedDays === 1 ? 'day' : 'days'} you logged
+                            Average of the {week.loggedDays} {week.loggedDays === 1 ? 'day' : 'days'} you logged food
                             (target {formatKcal(week.averageTargetKcal)} kcal). Days you didn't log aren't counted as 0.
                         </p>
                     </section>

@@ -23,6 +23,7 @@ type Profile {
   weightKg: Float!
   activityLevel: ActivityLevel!
   goal: Goal!
+  exerciseInBudget: Boolean!
   mealSplit: MealSplit!
   age: Int!
   target: CalorieTarget!
@@ -96,11 +97,22 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type Exercise {
+  id: Int!
+  name: String!
+  minutes: Int
+  kcal: Int!
+}
+
 type DailyLog {
   date: String!
   targetKcal: Int!
+  exerciseInBudget: Boolean!
   entries: [LogEntry!]!
+  exercises: [Exercise!]!
   eatenKcal: Int!
+  burnedKcal: Int!
+  budgetKcal: Int!
   remainingKcal: Int!
   meals: [MealSummary!]!
   unsortedEntries: [LogEntry!]!
@@ -113,6 +125,8 @@ type DaySummary {
   date: String!
   eatenKcal: Int!
   targetKcal: Int
+  burnedKcal: Int!
+  budgetKcal: Int
   logged: Boolean!
 }
 
@@ -123,6 +137,8 @@ type Week {
   loggedDays: Int!
   averageKcal: Int
   averageTargetKcal: Int
+  averageBudgetKcal: Int
+  averageBurnedKcal: Int
 }
 
 type MealSummary {
@@ -155,6 +171,9 @@ type Mutation {
   quickAdd(input: QuickAddInput!): DailyLog!
   updateLogEntry(id: Int!, input: UpdateLogEntryInput!): DailyLog!
   deleteLogEntry(id: Int!): DailyLog!
+  addExercise(input: AddExerciseInput!): DailyLog!
+  updateExercise(id: Int!, input: ExerciseInput!): DailyLog!
+  deleteExercise(id: Int!): DailyLog!
 }
 
 input ProfileInput {
@@ -168,6 +187,7 @@ input ProfileInput {
 
 input SettingsInput {
   mealSplit: MealSplitInput
+  exerciseInBudget: Boolean
 }
 
 input MealSplitInput {
@@ -230,4 +250,17 @@ input QuickAddInput {
 input UpdateLogEntryInput {
   quantity: Float
   meal: Meal
+}
+
+input AddExerciseInput {
+  name: String!
+  minutes: Int
+  kcal: Int!
+  date: String
+}
+
+input ExerciseInput {
+  name: String!
+  minutes: Int
+  kcal: Int!
 }

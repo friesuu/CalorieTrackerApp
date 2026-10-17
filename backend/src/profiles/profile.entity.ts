@@ -69,6 +69,12 @@ export class Profile {
   @Column({ name: 'snack_pct', type: 'int', default: 10 })
   snackPct: number;
 
+  // "Add exercise calories to my daily budget". Off unless you turn it on: burn estimates from watches
+  // and gym machines are often high, so eating them all back can cancel out the goal's deficit.
+  @Field()
+  @Column({ name: 'exercise_in_budget', type: 'boolean', default: false })
+  exerciseInBudget: boolean;
+
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }

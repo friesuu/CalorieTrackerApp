@@ -8,13 +8,15 @@ const USER_FIELDS = 'id name email';
 export const SESSION_EXPIRED_EVENT = 'calorie-tracker:session-expired';
 const PROFILE_FIELDS = `sex birthDate age heightCm weightKg activityLevel goal
   target { maintenanceKcal goalDeficitKcal minimumKcal targetKcal capped }
-  mealSplit { breakfast lunch dinner snack }`;
+  mealSplit { breakfast lunch dinner snack } exerciseInBudget`;
 const FOOD_FIELDS = 'id name servingSize servingUnit kcalPerServing proteinG carbsG fatG';
 const ENTRY_FIELDS = 'id foodId name servingSize servingUnit kcalPerServing proteinG carbsG fatG quantity kcal meal';
 const DAY_FIELDS = `date targetKcal eatenKcal remainingKcal proteinG carbsG fatG
   entries { ${ENTRY_FIELDS} }
   meals { meal targetKcal eatenKcal entries { ${ENTRY_FIELDS} } }
-  unsortedEntries { ${ENTRY_FIELDS} }`;
+  unsortedEntries { ${ENTRY_FIELDS} }
+  exerciseInBudget burnedKcal budgetKcal
+  exercises { id name minutes kcal }`;
 
 // Validation errors keep their real messages in originalError (as an array);
 // other errors have a readable message directly.
@@ -119,6 +121,7 @@ export async function changePassword(currentPassword, newPassword)
 // ---------- Profile ----------
 
 // Settings that aren't body details, e.g. { mealSplit: { breakfast: 25, lunch: 35, dinner: 30, snack: 10 } }
+// or { exerciseInBudget: true }. Send only what changes.
 export async function saveSettings(input)
 {
     const data = await graphqlRequest(
@@ -204,8 +207,8 @@ export async function getWeek(endDate)
     const data = await graphqlRequest(
         `query Week($endDate: String) {
             week(endDate: $endDate) {
-                startDate endDate loggedDays averageKcal averageTargetKcal
-                days { date eatenKcal targetKcal logged }
+                startDate endDate loggedDays averageKcal averageTargetKcal averageBudgetKcal averageBurnedKcal
+                days { date eatenKcal targetKcal burnedKcal budgetKcal logged }
             }
         }`,
         { endDate: endDate ?? null },
@@ -267,4 +270,41 @@ export async function deleteLogEntry(id)
         { id },
     );
     return data.deleteLogEntry;
+}
+
+// ---------- Exercise (also returns the whole day: the budget and what's left depend on it) ----------
+
+// input: { name, minutes, kcal, date }. minutes may be null.
+export async function addExercise(input)
+{
+    const data = await graphqlRequest(
+        `mutation AddExercise($input: AddExerciseInput!) {
+            addExercise(input: $input) { ${DAY_FIELDS} }
+        }`,
+        { input },
+    );
+    return data.addExercise;
+}
+
+// input: { name, minutes, kcal }, all three again (no minutes = cleared)
+export async function updateExercise(id, input)
+{
+    const data = await graphqlRequest(
+        `mutation UpdateExercise($id: Int!, $input: ExerciseInput!) {
+            updateExercise(id: $id, input: $input) { ${DAY_FIELDS} }
+        }`,
+        { id, input },
+    );
+    return data.updateExercise;
+}
+
+export async function deleteExercise(id)
+{
+    const data = await graphqlRequest(
+        `mutation DeleteExercise($id: Int!) {
+            deleteExercise(id: $id) { ${DAY_FIELDS} }
+        }`,
+        { id },
+    );
+    return data.deleteExercise;
 }
