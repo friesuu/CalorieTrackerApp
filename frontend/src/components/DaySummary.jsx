@@ -1,4 +1,5 @@
 import { formatAmount, formatKcal } from '../numbers';
+import ProgressRing from './ProgressRing';
 
 // "45 g protein · 120 g carbs", only the ones the logged foods have. Empty when none do.
 function macrosText(day)
@@ -10,8 +11,8 @@ function macrosText(day)
     ].filter(Boolean).join(' · ');
 }
 
-// The top card on the daily log. The hero number is what's left (or how far over).
-// Over target is said in words AND shown in colour, never colour alone.
+// The top card on the daily log: the ring (what's left, or how far over, in the middle), then
+// eaten and left as kcal and % of the budget. Over is said in words AND shown in colour, never colour alone.
 // With exercise, a line shows exactly how "remaining" was worked out, so the number is never a mystery.
 // isToday: only today follows the Profile setting; a past day keeps the one it had.
 function DaySummary({ day, isToday })
@@ -19,30 +20,29 @@ function DaySummary({ day, isToday })
     const isOver = day.remainingKcal < 0;
     // The budget is the target, plus exercise when the day adds it (worked out by the server)
     const addsExercise = day.budgetKcal !== day.targetKcal;
-    const filled = Math.min(day.eatenKcal / day.budgetKcal, 1) * 100; // % of the bar, full once over
+    // Left's % is 100 − eaten's, so the two always add up to 100. Over: eaten is past 100, and over is the extra.
+    const eatenPct = Math.round((day.eatenKcal / day.budgetKcal) * 100);
     const macros = macrosText(day);
 
     return (
-        <section className={isOver ? 'card summary-card over' : 'card summary-card'} aria-label="Calories">
-            <p className="card-label">{isOver ? `Over ${addsExercise ? 'budget' : 'target'}` : 'Remaining'}</p>
-            <p className="hero-number num">
-                {isOver ? `Over by ${formatKcal(-day.remainingKcal)}` : formatKcal(day.remainingKcal)}
-                <span className="hero-unit"> kcal</span>
-            </p>
+        <section className={isOver ? 'card summary-card ring-card over' : 'card summary-card ring-card'} aria-label="Calories">
+            <ProgressRing eatenKcal={day.eatenKcal} budgetKcal={day.budgetKcal} remainingKcal={day.remainingKcal} />
 
-            <div
-                className="progress"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={day.budgetKcal}
-                aria-valuenow={Math.min(day.eatenKcal, day.budgetKcal)}
-                aria-valuetext={`${formatKcal(day.eatenKcal)} of ${formatKcal(day.budgetKcal)} kcal eaten`}
-            >
-                <div className="progress-fill" style={{ width: `${filled}%` }} />
-            </div>
-
-            <p className="summary-totals num">
-                <strong>{formatKcal(day.eatenKcal)}</strong> eaten / {formatKcal(day.budgetKcal)} {addsExercise ? 'budget' : 'target'}
+            <dl className="ring-stats num">
+                <div className="ring-stat">
+                    <dt><span className="ring-key eaten" aria-hidden="true" />Eaten</dt>
+                    <dd>{formatKcal(day.eatenKcal)} kcal <span className="ring-pct">({eatenPct}%)</span></dd>
+                </div>
+                <div className="ring-stat">
+                    <dt><span className={isOver ? 'ring-key over' : 'ring-key'} aria-hidden="true" />{isOver ? 'Over' : 'Left'}</dt>
+                    <dd>
+                        {formatKcal(Math.abs(day.remainingKcal))} kcal{' '}
+                        <span className="ring-pct">({isOver ? eatenPct - 100 : 100 - eatenPct}%)</span>
+                    </dd>
+                </div>
+            </dl>
+            <p className="ring-budget num">
+                {addsExercise ? 'Budget' : 'Daily target'} {formatKcal(day.budgetKcal)} kcal
             </p>
 
             {day.burnedKcal > 0 && (

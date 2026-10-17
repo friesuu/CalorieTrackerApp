@@ -713,6 +713,139 @@ fieldset[aria-invalid='true'] .options {
   color: var(--over);
 }
 
+/* ---------- The day's ring: what's left in the middle, eaten and left underneath ---------- */
+
+.ring-card {
+  text-align: center;
+}
+
+.ring {
+  position: relative;
+  width: 172px;
+  height: 172px;
+  margin: 4px auto 0;
+}
+
+/* Turned a quarter, so the ring starts at the top (12 o'clock) and fills clockwise */
+.ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring-track,
+.ring-fill {
+  fill: none;
+}
+
+.ring-track {
+  stroke: var(--border);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  /* Draws itself in when it first appears, then slides to each new total */
+  animation: ring-in 0.8s ease-out;
+  transition: stroke-dashoffset 0.5s ease-out, stroke 0.3s ease;
+}
+
+.summary-card.over .ring-fill {
+  stroke: var(--over);
+}
+
+/* From empty (offset = the whole circle) to wherever the style says */
+@keyframes ring-in {
+  from {
+    stroke-dashoffset: var(--ring-length);
+  }
+}
+
+.ring-centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring-number {
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.summary-card.over .ring-number {
+  color: var(--over);
+}
+
+.ring-unit {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Eaten | Left, side by side, with a divider between */
+.ring-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.ring-stat + .ring-stat {
+  border-left: 1px solid var(--border);
+}
+
+.ring-stat dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.ring-stat dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* On its own line, so both columns always look the same, however narrow */
+.ring-pct {
+  display: block;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+/* A small dot matching the ring: the eaten part, and the empty track (or --over) */
+.ring-key {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--border);
+}
+
+.ring-key.eaten {
+  background-color: var(--accent);
+}
+
+.ring-key.over,
+.summary-card.over .ring-key.eaten {
+  background-color: var(--over);
+}
+
+.ring-budget {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .progress {
   height: 8px;
   margin-top: 12px;
@@ -1570,6 +1703,12 @@ fieldset[aria-invalid='true'] .options {
 @media (prefers-reduced-motion: reduce) {
   .sheet[open] {
     animation: none;
+  }
+
+  /* The ring just shows the value, without drawing or sliding */
+  .ring-fill {
+    animation: none;
+    transition: none;
   }
 }
 
