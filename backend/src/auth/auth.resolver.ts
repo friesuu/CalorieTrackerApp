@@ -8,6 +8,7 @@ import type { Response } from 'express';
 import { UseGuards } from "@nestjs/common";
 import { GqlAuthGuard } from "./gql-auth.guard";
 import { CurrentUser } from "./current-user.decorator";
+import { AUTH_COOKIE } from "./auth-cookies";
 
 // Shared by setting and clearing the cookie: browsers only clear a cookie if the options match
 const COOKIE_OPTIONS = {
@@ -20,7 +21,7 @@ const COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // Login and change-password both hand out a token the same way
 function setLoginCookie(res: Response, token: string): void {
-  res.cookie('token', token, { ...COOKIE_OPTIONS, maxAge: COOKIE_MAX_AGE });
+  res.cookie(AUTH_COOKIE, token, { ...COOKIE_OPTIONS, maxAge: COOKIE_MAX_AGE });
 }
 
 @Resolver(() => User)
@@ -55,7 +56,7 @@ export class AuthResolver
     @Mutation(() => Boolean)
     logout(@Context() ctx: { res: Response }): boolean
     {
-        ctx.res.clearCookie('token', COOKIE_OPTIONS);
+        ctx.res.clearCookie(AUTH_COOKIE, COOKIE_OPTIONS);
         return true;
     }
 

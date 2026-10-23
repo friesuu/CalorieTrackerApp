@@ -11,6 +11,7 @@ import { Profile } from '../src/profiles/profile.entity';
 import { DailyLog } from '../src/daily-logs/daily-log.entity';
 import { LogEntry } from '../src/daily-logs/log-entry.entity';
 import { addDays, todayIn } from '../src/common/dates';
+import { AUTH_COOKIE } from '../src/auth/auth-cookies';
 
 // The shared starter foods (made by the Accounts migration), A to Z
 const STARTER_FOODS = ['Apple', 'Banana', 'Egg', 'Full cream milk', 'White bread', 'White rice, cooked'];
@@ -1222,7 +1223,9 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
 
       expect(user).toMatchObject({ name: 'Person 1', email: 'person1@test.com' }); // trimmed, lower case
       const setCookie = session.join('; ');
-      expect(setCookie).toContain('token=');
+      expect(setCookie).toContain(`${AUTH_COOKIE}=`);
+      // Not plain "token": that's the task board's cookie, and apps on localhost share cookies
+      expect(setCookie).not.toMatch(/(^|;\s*)token=/);
       expect(setCookie).toContain('HttpOnly'); // JavaScript in the page can't read it
       expect(setCookie).toContain('SameSite=Lax'); // not sent along on requests from other sites
       expect(setCookie).toContain('Max-Age=2592000'); // 30 days, in seconds
@@ -1295,14 +1298,14 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
 
     it('me needs a valid login cookie', async () => {
       const none = await gqlAs([], ME).expect(200);
-      const madeUp = await gqlAs(['token=not-a-real-token'], ME).expect(200);
+      const madeUp = await gqlAs([`${AUTH_COOKIE}=not-a-real-token`], ME).expect(200);
 
       expect(none.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
       expect(madeUp.body.errors[0].extensions.code).toBe('UNAUTHENTICATED');
     });
 
     // supertest isn't a browser and won't delete the cookie itself, so we check the instruction the
-    // server sends: "token is now empty and expired in 1970" (same check as the task board)
+    // server sends: "the cookie is now empty and expired in 1970" (same check as the task board)
     it('logout tells the browser to delete the cookie', async () => {
       const { cookie: session } = await register(person(8));
 
@@ -1310,7 +1313,7 @@ describe('Calorie tracker GraphQL API (e2e)', () => {
 
       expect(res.body.data.logout).toBe(true);
       const setCookie = String(res.headers['set-cookie']);
-      expect(setCookie).toContain('token=;');
+      expect(setCookie).toContain(`${AUTH_COOKIE}=;`);
       expect(setCookie).toContain('Expires=Thu, 01 Jan 1970');
       expect(setCookie).toContain('HttpOnly'); // same options as login, or browsers won't clear it
     });
