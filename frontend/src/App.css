@@ -1,100 +1,620 @@
-/* Phone first: these rules are for small screens, and the @media (min-width: 1024px) blocks
-   change what's needed for laptops. Colours come from the tokens in index.css. */
+/* Styles for the "Haze" design (design/DESIGN.md). Every value comes from the tokens in index.css.
+   Phone first: the plain rules are for phones (below 720px). @media (min-width: 720px) is tablet and up,
+   @media (min-width: 1024px) desktop (the same widths as breakpoints.js). */
 
-/* ---------- Page layout ---------- */
+/* ---------- App shell ----------
+   Phones: the main panel fills the screen edge to edge, under a sticky header with the menu button;
+   the navigation opens as a drawer. From 720px: a sidebar panel and the main panel, side by side on --page. */
 
 .app {
-  min-height: 100svh;
+  min-height: 100vh; /* fallback for browsers without dvh */
+  min-height: 100dvh;
 }
 
+.main-panel {
+  min-width: 0;
+  background-color: var(--panel);
+}
+
+/* The page's title bar. On phones it stays at the top while the page scrolls under it:
+   menu button | title (one line) | up to two icon buttons */
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: calc(var(--tap) + var(--space-3) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) var(--space-2) 0;
+  background-color: var(--bar);
+  border-bottom: 1px solid var(--divider);
+}
+
+.page-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-h1-mobile);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* The page's content, under the header */
 .page {
-  width: 100%; /* without this, margin: auto inside the laptop grid shrinks the page to fit its content */
-  max-width: 1100px;
+  width: 100%;
   margin: 0 auto;
-  /* Bottom padding leaves room for the tab bar (and the iPhone home bar) */
-  padding: 20px 16px calc(88px + env(safe-area-inset-bottom));
+  padding: var(--space-4) var(--space-4) calc(var(--space-8) + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-6);
 }
 
-.page-header h1 {
-  font-size: 1.5rem;
+/* Today: up to 1120px on phones and tablets; the full panel width on desktops (see the Today section) */
+.page-today {
+  max-width: var(--content-wide);
 }
 
-/* ---------- Cards, text, buttons ---------- */
-
-.card {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 20px;
+.page-narrow {
+  max-width: var(--content-narrow);
 }
+
+/* A slim row at the top of the content: the date, "Today", "‹ Today" */
+.day-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  min-height: var(--tap);
+}
+
+/* ---------- Navigation: the same items in the sidebar (720px and up) and in the drawer (phones) ---------- */
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* In the drawer the nav fills it, so who's logged in sits at the bottom.
+   (The sidebar has its own height: the screen's, see below.) */
+.nav-drawer {
+  min-height: 100%;
+}
+
+.nav-brand {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  font-size: var(--text-brand);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  background: none;
+  border: none;
+  border-radius: var(--radius-control);
+  color: var(--text-2);
+  font-weight: 500;
+  text-align: left;
+  transition: background-color var(--motion), color var(--motion);
+}
+
+.nav-item:active {
+  background-color: var(--hover);
+}
+
+/* The open page: a filled row, and aria-current for screen readers (never colour alone) */
+.nav-item.active {
+  background-color: var(--selected-bg);
+  color: var(--selected-text);
+  font-weight: 600;
+}
+
+/* Same width for an 18px icon and the 28px avatar, so the labels line up */
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--avatar-sm);
+  flex-shrink: 0;
+}
+
+/* Who's logged in, at the bottom */
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding: var(--space-4) var(--space-3) var(--space-1);
+  border-top: 1px solid var(--divider);
+  min-width: 0;
+}
+
+.nav-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.nav-user-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-user-email {
+  color: var(--muted);
+  font-size: var(--text-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- The navigation drawer (phones) ---------- */
+
+.drawer {
+  inset: 0 auto 0 0; /* pinned to the left edge */
+  width: var(--drawer-width);
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-right: 1px solid var(--border-nav);
+  border-radius: 0 var(--radius-sheet) var(--radius-sheet) 0;
+  background-color: var(--nav);
+  color: var(--text);
+}
+
+.drawer[open] {
+  animation: drawer-in var(--motion);
+}
+
+.drawer::backdrop {
+  background-color: var(--scrim);
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+.drawer-inner {
+  height: 100%;
+  overflow-y: auto;
+  padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--space-3) calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+
+/* While the drawer or a sheet is open, the page behind it doesn't scroll */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+/* ---------- Avatars: your initial in a circle ---------- */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background-color: var(--tint);
+  color: var(--accent);
+  font-size: var(--text-small);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.avatar-small {
+  width: var(--avatar-sm);
+  height: var(--avatar-sm);
+}
+
+.avatar-medium {
+  width: var(--avatar-md);
+  height: var(--avatar-md);
+}
+
+.avatar-large {
+  width: var(--avatar-lg);
+  height: var(--avatar-lg);
+}
+
+.avatar-xlarge {
+  width: var(--avatar-xl);
+  height: var(--avatar-xl);
+  font-size: var(--text-h2);
+}
+
+/* ---------- Icon circles: a small icon on a soft tint, at the start of a card or row ---------- */
+
+.icon-circle {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: var(--avatar-md);
+  height: var(--avatar-md);
+  border-radius: var(--radius-pill);
+  background-color: var(--sunken);
+  color: var(--muted);
+}
+
+.icon-circle svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+.icon-circle.meal-breakfast {
+  background-color: var(--meal-breakfast-tint);
+  color: var(--meal-breakfast);
+}
+
+.icon-circle.meal-lunch {
+  background-color: var(--meal-lunch-tint);
+  color: var(--meal-lunch);
+}
+
+.icon-circle.meal-dinner {
+  background-color: var(--meal-dinner-tint);
+  color: var(--meal-dinner);
+}
+
+.icon-circle.meal-snack {
+  background-color: var(--meal-snack-tint);
+  color: var(--meal-snack);
+}
+
+.icon-circle.exercise {
+  background-color: var(--success-tint);
+  color: var(--success-icon);
+}
+
+/* Each page's icon in the navigation in its own colour (the Profile item shows your initial) */
+.nav-item[data-page='today'] .nav-icon {
+  color: var(--page-today);
+}
+
+.nav-item[data-page='foods'] .nav-icon {
+  color: var(--page-foods);
+}
+
+.nav-item[data-page='history'] .nav-icon {
+  color: var(--page-history);
+}
+
+/* ---------- Icon button: 44px round, just the icon ---------- */
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  transition: background-color var(--motion), color var(--motion);
+}
+
+.icon-btn:active {
+  background-color: var(--hover);
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Tablet and up: sidebar panel + main panel on --page ---------- */
+
+@media (min-width: 720px) {
+  .app {
+    display: grid;
+    grid-template-columns: var(--nav-width-tablet) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  /* Stays in view while the page scrolls; scrolls itself on a short screen (a phone on its side) */
+  .nav-sidebar {
+    position: sticky;
+    top: var(--space-3);
+    height: calc(100vh - 2 * var(--space-3));
+    height: calc(100dvh - 2 * var(--space-3));
+    overflow-y: auto;
+    padding: var(--space-4) var(--space-3);
+    background-color: var(--nav);
+    border: 1px solid var(--border-nav);
+    border-radius: var(--radius-sheet);
+  }
+
+  .main-panel {
+    min-height: calc(100vh - 2 * var(--space-3));
+    min-height: calc(100dvh - 2 * var(--space-3));
+    border: 1px solid var(--border-panel);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  /* Title on the left, actions on the right, a divider under it. Not sticky: the page scrolls as one. */
+  .page-header {
+    position: static;
+    min-height: calc(var(--tap) + 2 * var(--space-3));
+    padding: var(--space-3) var(--space-6);
+    background: none;
+  }
+
+  .page-title {
+    font-size: var(--text-h1);
+  }
+
+  .page {
+    padding: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  .app {
+    grid-template-columns: var(--nav-width) minmax(0, 1fr);
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .nav-sidebar {
+    top: var(--space-4);
+    height: calc(100vh - 2 * var(--space-4));
+    height: calc(100dvh - 2 * var(--space-4));
+  }
+
+  .main-panel {
+    min-height: calc(100vh - 2 * var(--space-4));
+    min-height: calc(100dvh - 2 * var(--space-4));
+  }
+
+  .page-header {
+    padding: var(--space-3) var(--space-8);
+  }
+
+  .page {
+    padding: var(--space-8);
+    gap: var(--space-8);
+  }
+}
+
+@media (hover: hover) {
+  .nav-item:not(.active):hover {
+    background-color: var(--hover);
+    color: var(--text);
+  }
+
+  .icon-btn:not(:disabled):hover {
+    background-color: var(--hover);
+    color: var(--text);
+  }
+}
+
+/* =====================================================================================
+   Shared components (DESIGN.md section 9). The same element looks the same on every screen.
+   ===================================================================================== */
+
+/* ---------- Text ---------- */
 
 .muted {
   color: var(--muted);
 }
 
-/* "Nothing here yet" inside a card */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 40px 20px;
-  text-align: center;
+.section-title {
+  font-size: var(--text-h2);
 }
+
+/* Read out by screen readers, not shown (e.g. the library's search label: the icon says it instead) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* A card's title (H3 size), e.g. "Your daily target", "Daily average" */
+.card-label {
+  font-size: var(--text-h3);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* The big numbers: what's left, the target, the weekly average */
+.hero-number {
+  font-size: var(--text-stat);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-unit {
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* ---------- Buttons: secondary (plain .btn), primary, danger, ghost ---------- */
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 44px; /* big enough to tap */
-  padding: 0 18px;
-  background-color: var(--surface);
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  background-color: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  font-weight: 600;
+  box-shadow: var(--shadow-control);
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  transition: background-color var(--motion), filter var(--motion);
 }
 
+.btn svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}
+
+.btn:active {
+  background-color: var(--hover);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* One per view or section */
 .btn-primary {
-  background-color: var(--accent-strong);
-  border-color: var(--accent-strong);
-  color: var(--surface);
+  background-color: var(--primary-bg);
+  border-color: var(--primary-bg);
+  box-shadow: none;
+  color: var(--primary-text);
 }
 
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: wait;
+.btn-primary:active {
+  background-color: var(--primary-bg);
+  filter: brightness(0.94);
 }
 
-/* Full width on phones (easy to hit with a thumb), its natural width on laptops */
+/* Removing or deleting something */
+.btn-danger {
+  background-color: var(--danger-tint);
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--danger-text);
+}
+
+.btn-danger:active {
+  background-color: var(--danger-tint);
+  filter: brightness(0.97);
+}
+
+/* Quiet: no fill until pressed, e.g. "‹ Today" */
+.btn-ghost {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--text-2);
+}
+
+/* Soft, tinted secondary actions (the palette's "small buttons"): Quick add, Log exercise.
+   The icon takes the status colour, the words its darker text colour. */
+.btn-tint-info,
+.btn-tint-success {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.btn-tint-info,
+.btn-tint-info:active {
+  background-color: var(--info-tint);
+  color: var(--info-text);
+}
+
+.btn-tint-success,
+.btn-tint-success:active {
+  background-color: var(--success-tint);
+  color: var(--success-text);
+}
+
+.btn-tint-info svg {
+  color: var(--info-icon);
+}
+
+.btn-tint-success svg {
+  color: var(--success-icon);
+}
+
+.btn-tint-info:active,
+.btn-tint-success:active {
+  filter: brightness(0.97);
+}
+
+/* Full width on phones, easy to hit with a thumb */
 .btn-block {
   width: 100%;
 }
 
-.section-title {
-  font-size: 1.1rem;
+/* A button that reads like a link, still 44px tall to tap */
+.link-btn {
+  min-height: var(--tap);
+  padding: 0 var(--space-1);
+  background: none;
+  border: none;
+  color: var(--link);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-/* ---------- Forms: label above, field, error under it ---------- */
+/* ---------- Forms: label above, field, help or error under it ---------- */
 
-.profile-form {
+.profile-form,
+.food-form,
+.auth-form,
+.quantity-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-4);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 0; /* lets a field shrink inside the two-column row */
+  gap: var(--space-2);
+  min-width: 0; /* lets a field shrink inside a two-column row */
 }
 
 /* fieldset and legend come with a border and odd spacing by default */
 fieldset.field {
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: none;
@@ -102,45 +622,56 @@ fieldset.field {
 
 .field-label {
   padding: 0;
+  color: var(--text-2);
+  font-size: var(--text-small);
   font-weight: 500;
 }
 
-/* Height and weight side by side, even on a phone (they're short) */
-.field-pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-/* "(optional)" next to a label, and a short hint under it */
-.field-optional,
-.field-hint {
+.field-optional {
   color: var(--muted);
   font-weight: 400;
 }
 
 .field-hint {
-  margin-top: -2px;
-  font-size: 0.875rem;
+  color: var(--muted);
+  font-size: var(--text-small);
 }
 
 /* A smaller label inside a group, e.g. "Size" and "Unit" under "Serving" */
 .field-sublabel {
-  font-size: 0.875rem;
+  color: var(--text-2);
+  font-size: var(--text-small);
   font-weight: 500;
+}
+
+/* Two short fields side by side, even on a phone (height and weight) */
+.field-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.field-trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 .input {
   width: 100%;
-  min-height: 48px;
-  padding: 0 14px;
-  background-color: var(--surface);
-  border: 1px solid var(--border);
+  min-height: var(--tap);
+  padding: 0 var(--input-pad);
+  background-color: var(--raised);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-control);
+  box-shadow: var(--shadow-control);
+  color: var(--text);
+  font-size: var(--text-input-mobile); /* 16px on phones: iPhones zoom in on anything smaller */
 }
 
 .input[aria-invalid='true'] {
-  border-color: var(--over);
+  border-color: var(--danger-icon);
 }
 
 /* Hide the tiny up/down arrows on number inputs: the phone keypad does the job */
@@ -155,56 +686,205 @@ fieldset.field {
   margin: 0;
 }
 
-/* Errors use --over, the one warm colour, always as text (never colour alone) */
-.field-error,
-.form-error {
-  color: var(--over);
-  font-size: 0.875rem;
+/* Under a field: an icon AND the words, never colour alone */
+.field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--danger-text);
+  font-size: var(--text-small);
   font-weight: 500;
 }
 
-.form-success {
-  color: var(--accent-strong);
-  font-weight: 500;
+.field-error::before {
+  content: '';
+  flex-shrink: 0;
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+  margin-top: 3px; /* lines the icon up with the first line of text */
+  background-color: var(--danger-icon);
+  -webkit-mask: var(--icon-alert) center / contain no-repeat;
+  mask: var(--icon-alert) center / contain no-repeat;
 }
 
-/* ---------- Choice rows (radio buttons): square rows, 1px dividers, in one rounded group ---------- */
+/* Password field with Show / Hide inside it */
+.password-input {
+  position: relative;
+}
+
+.password-input .input {
+  padding-right: calc(var(--tap) + var(--space-6));
+}
+
+.password-toggle {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  min-width: calc(var(--tap) + var(--space-4));
+  padding: 0 var(--space-3);
+  background: none;
+  border: none;
+  border-radius: calc(var(--radius-control) - 1px);
+  color: var(--link);
+  font-weight: 500;
+  transition: background-color var(--motion);
+}
+
+.password-toggle:active {
+  background-color: var(--hover);
+}
+
+/* A section of a form that opens and closes (optional macros). Looks like a ghost button. */
+.macros summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  margin: 0 calc(-1 * var(--space-3));
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--text-2);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none; /* our own arrow below, the same in every browser */
+  transition: background-color var(--motion);
+}
+
+.macros summary::-webkit-details-marker {
+  display: none;
+}
+
+.macros summary::before {
+  content: '';
+  width: var(--space-2);
+  height: var(--space-2);
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--motion);
+}
+
+.macros[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.macros summary:active {
+  background-color: var(--hover);
+}
+
+/* − [ 1.5 ] +   158 kcal */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stepper-btn {
+  width: var(--tap);
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+}
+
+.stepper-input {
+  width: calc(2 * var(--tap));
+  text-align: center;
+}
+
+.stepper-total {
+  margin-left: auto;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------- Choices: radio and checkbox rows in a list, and the segmented control ---------- */
 
 .options {
-  background-color: var(--surface);
+  background-color: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   overflow: hidden; /* keeps the selected row's fill inside the rounded corners */
 }
 
+/* The whole row is the tap target */
 .option {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 10px 16px;
+  gap: var(--space-3);
+  min-height: var(--row-height);
+  padding: var(--space-2) var(--space-4);
   cursor: pointer;
+  transition: background-color var(--motion);
 }
 
 .option + .option {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--divider-subtle);
+}
+
+.option:active {
+  background-color: var(--hover);
 }
 
 .option.selected {
-  background-color: var(--accent-soft);
+  background-color: var(--selected-bg);
 }
 
+.option.selected .option-label {
+  color: var(--selected-text);
+}
+
+/* Our own radio and checkbox: off = --raised with --border-strong, on = --accent with a white mark */
 .option input {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  display: grid;
+  place-content: center;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
   margin: 0;
-  accent-color: var(--accent-strong);
+  background-color: var(--raised);
+  border: 1px solid var(--border-strong);
+  -webkit-appearance: none;
+  appearance: none;
+  transition: background-color var(--motion), border-color var(--motion);
+}
+
+.option input[type='radio'] {
+  border-radius: 50%;
+}
+
+.option input[type='checkbox'] {
+  border-radius: var(--radius-check);
+}
+
+.option input:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.option input[type='radio']:checked::before {
+  content: '';
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: 50%;
+  background-color: var(--primary-text);
+}
+
+.option input[type='checkbox']:checked::before {
+  content: '';
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+  background-color: var(--primary-text);
+  -webkit-mask: var(--icon-tick) center / contain no-repeat;
+  mask: var(--icon-tick) center / contain no-repeat;
 }
 
 .option-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .option-label {
@@ -213,18 +893,50 @@ fieldset.field {
 
 .option-hint {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-small);
 }
 
-/* Two short choices side by side (Female / Male) */
+/* Two short choices (Female / Male) as a segmented control: a sunken track, the chosen one raised.
+   Still radio buttons underneath (hidden), so keyboards and screen readers work the same. */
 .options.segmented {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background-color: var(--sunken);
+  box-shadow: none;
+  overflow: visible;
 }
 
-.options.segmented .option + .option {
-  border-top: none;
-  border-left: 1px solid var(--border);
+.options.segmented .option {
+  justify-content: center;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-segment);
+}
+
+.options.segmented .option.selected {
+  background-color: var(--raised);
+  border-color: var(--border);
+  box-shadow: var(--shadow-control);
+}
+
+.options.segmented .option.selected .option-label {
+  color: var(--text);
+}
+
+.options.segmented input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.options.segmented .option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* The four meals, two by two. The 1px gap shows the group's background through: the dividers. */
@@ -232,11 +944,11 @@ fieldset.field {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
-  background-color: var(--border);
+  background-color: var(--divider-subtle);
 }
 
 .meal-options .option {
-  background-color: var(--surface);
+  background-color: var(--raised);
 }
 
 .meal-options .option + .option {
@@ -244,55 +956,699 @@ fieldset.field {
 }
 
 .meal-options .option.selected {
-  background-color: var(--accent-soft);
+  background-color: var(--selected-bg);
 }
 
 fieldset[aria-invalid='true'] .options {
-  border-color: var(--over);
+  border-color: var(--danger-icon);
 }
 
-/* ---------- Target card: the hero number, then how it was worked out ---------- */
+/* ---------- Cards ---------- */
+
+.card {
+  background-color: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+}
+
+/* A page's one main card, lifted above the others (Today's ring, the Profile's target): a soft indigo
+   outline and an indigo glow for a shadow, both rose once over */
+.hero-card {
+  border: 2px solid var(--hero-border);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-hero);
+  transition: box-shadow var(--motion), border-color var(--motion);
+}
+
+.hero-card.over {
+  border-color: var(--hero-border-over);
+  box-shadow: var(--shadow-hero-over);
+}
+
+/* A card with a big number in it: the day, a meal, the weekly average */
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* An icon circle and the card's title on one line */
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
+.summary-card.over .hero-number {
+  color: var(--danger-text);
+}
+
+.summary-totals {
+  margin-top: var(--space-2);
+  color: var(--muted);
+}
+
+.summary-totals strong {
+  color: var(--text);
+}
+
+.summary-macros {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* How a number was worked out: 2,161 target + 300 exercise − 1,502 eaten = 959 left */
+.summary-formula {
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--divider);
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* ---------- Bars: how much of a target is eaten (--danger-icon, and full, once over) ---------- */
+
+.progress {
+  height: var(--track);
+  margin-top: var(--space-3);
+  border-radius: var(--radius-pill);
+  background-color: var(--border);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent);
+  transition: width var(--motion);
+}
+
+.summary-card.over .progress-fill {
+  background-color: var(--danger-icon);
+}
+
+.meter {
+  height: var(--track-thin);
+  border-radius: var(--radius-pill);
+  background-color: var(--border);
+  overflow: hidden;
+}
+
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent);
+}
+
+.meter-fill.over {
+  background-color: var(--danger-icon);
+}
+
+/* ---------- Lists: rows inside one container, 1px dividers ---------- */
+
+.list-card {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.list-card > li + li {
+  border-top: 1px solid var(--divider-subtle);
+}
+
+/* A small count above a list, e.g. "6 foods" */
+.list-meta {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* A row you can tap: a food to edit, an entry to change */
+.row-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+  transition: background-color var(--motion);
+}
+
+.row-button:active {
+  background-color: var(--hover);
+}
+
+.row-button .food-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-button:focus-visible {
+  outline-offset: -2px; /* inside the row, so the rounded corners don't cut it off */
+}
+
+.row-chevron {
+  display: flex;
+  padding-right: var(--space-3);
+  margin-left: calc(-1 * var(--space-1));
+  color: var(--muted);
+}
+
+/* Name | serving | calories. The name takes the spare space and wraps if it must. */
+.food-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--row-height);
+  padding: var(--space-2) var(--space-4);
+}
+
+.food-row.with-icon {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.food-name {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.food-macros {
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 400;
+}
+
+.food-serving {
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.food-kcal {
+  min-width: 4.5em; /* calories line up in one column */
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Two lines (the Today library): name with the serving under it | the calories as a pill */
+.food-row.stacked {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.food-sub {
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 400;
+}
+
+/* A search box with the magnifying glass inside, on the left */
+.search-input {
+  position: relative;
+  display: block;
+}
+
+.search-input .input {
+  padding-left: calc(var(--input-pad) + var(--icon-md) + var(--space-2));
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--input-pad);
+  display: flex;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none; /* a tap on it goes to the box */
+}
+
+/* ---------- Chips: the recent foods. One row that scrolls sideways on a phone. ---------- */
+
+.chips {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--space-4)); /* edge to edge: the page padding */
+  padding: 0 var(--space-4) var(--space-1);
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  background-color: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-control);
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color var(--motion);
+}
+
+.chip:active {
+  background-color: var(--hover);
+}
+
+.chip-kcal {
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 400;
+}
+
+/* A long name is cut off with … rather than pushing the row onto a second line */
+.chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Pills: a status or a count, in words (the colour only repeats it) ---------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--pill-pad);
+  border-radius: var(--radius-pill);
+  background-color: var(--neutral-tint);
+  color: var(--neutral-text);
+  font-size: var(--text-pill);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.pill-info {
+  background-color: var(--info-tint);
+  color: var(--info-text);
+}
+
+.pill-success {
+  background-color: var(--success-tint);
+  color: var(--success-text);
+}
+
+.pill-warning {
+  background-color: var(--warning-tint);
+  color: var(--warning-text);
+}
+
+.pill-danger {
+  background-color: var(--danger-tint);
+  color: var(--danger-text);
+}
+
+/* ---------- Alerts: an icon and the words, on the status colour's tint ---------- */
+
+.form-error,
+.form-success,
+.auth-notice,
+.merge-note,
+.target-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+}
+
+.form-error::before,
+.form-success::before,
+.auth-notice::before,
+.merge-note::before,
+.target-note::before {
+  content: '';
+  flex-shrink: 0;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  margin-top: 3px;
+  -webkit-mask: var(--icon-alert) center / contain no-repeat;
+  mask: var(--icon-alert) center / contain no-repeat;
+}
+
+/* Something went wrong */
+.form-error {
+  background-color: var(--danger-tint);
+  color: var(--danger-text);
+}
+
+.form-error::before {
+  background-color: var(--danger-icon);
+}
+
+/* Saved */
+.form-success {
+  background-color: var(--success-tint);
+  color: var(--success-text);
+}
+
+.form-success::before {
+  background-color: var(--success-icon);
+  -webkit-mask-image: var(--icon-check);
+  mask-image: var(--icon-check);
+}
+
+/* Needs your attention: "Your session has expired" */
+.auth-notice {
+  background-color: var(--warning-tint);
+  color: var(--warning-text);
+}
+
+.auth-notice::before {
+  background-color: var(--warning-icon);
+}
+
+/* Good to know: "This adds to it", "Your target was raised to the safe minimum" */
+.merge-note,
+.target-note {
+  background-color: var(--info-tint);
+  color: var(--info-text);
+}
+
+.merge-note::before,
+.target-note::before {
+  background-color: var(--info-icon);
+  -webkit-mask-image: var(--icon-info);
+  mask-image: var(--icon-info);
+}
+
+/* ---------- Empty states: an icon in a circle, a title, one line, and one action ---------- */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-10) var(--space-5);
+  text-align: center;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: var(--space-10);
+  height: var(--space-10);
+  margin-bottom: var(--space-1);
+  border-radius: var(--radius-pill);
+  background-color: var(--info-tint);
+  color: var(--info-icon);
+}
+
+/* Something went wrong: rose */
+.empty-state[role='alert'] .empty-icon {
+  background-color: var(--danger-tint);
+  color: var(--danger-icon);
+}
+
+.empty-icon svg {
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+}
+
+.empty-title {
+  color: var(--text);
+  font-size: var(--text-h3);
+  font-weight: 600;
+}
+
+.empty-state .btn {
+  margin-top: var(--space-2);
+}
+
+/* ---------- Loading: a spinner in --accent before the words ---------- */
+
+.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.loading::before {
+  content: '';
+  flex-shrink: 0;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Loading and "Can't connect", before the app's shell is shown */
+.status-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.status-card {
+  width: 100%;
+  max-width: var(--status-width);
+}
+
+/* ---------- Sheets: a bottom sheet on phones, a centred box (modal) from 720px ---------- */
+
+.sheet {
+  width: 100%;
+  max-width: 100%;
+  max-height: 90vh;
+  max-height: 90dvh;
+  margin: auto 0 0; /* pinned to the bottom of the screen */
+  padding: 0;
+  overflow-y: auto; /* the content scrolls inside it */
+  border: none;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background-color: var(--panel);
+  box-shadow: var(--shadow-float);
+  color: var(--text);
+}
+
+.sheet[open] {
+  animation: sheet-up var(--motion);
+}
+
+.sheet::backdrop {
+  background-color: var(--scrim);
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(var(--space-6));
+    opacity: 0;
+  }
+}
+
+/* The grab handle on top of a bottom sheet (decoration: closing is the ✕, Esc, or a tap outside) */
+.sheet-handle {
+  width: var(--handle-width);
+  height: var(--space-1);
+  margin: var(--space-2) auto 0;
+  border-radius: var(--radius-pill);
+  background-color: var(--border);
+}
+
+.sheet-header {
+  position: sticky; /* the title and close button stay put while a long form scrolls */
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
+  background-color: var(--panel);
+  border-bottom: 1px solid var(--divider);
+}
+
+.sheet-header h2 {
+  font-size: var(--text-h2);
+}
+
+.sheet-content {
+  padding: var(--space-4) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+}
+
+.sheet-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* "Delete Egg? …" with Keep it / Delete. On a phone the two stack, the main one (Delete) on top. */
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--divider);
+}
+
+.confirm-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+}
+
+/* ---------- Shared components from 720px: 15px text in fields, buttons their own width, modals ---------- */
+
+@media (min-width: 720px) {
+  .input {
+    font-size: var(--text-body);
+  }
+
+  .btn-block {
+    width: auto;
+    align-self: flex-start;
+  }
+
+  /* In a sheet, the actions sit bottom-right */
+  .sheet .btn-block {
+    align-self: flex-end;
+  }
+
+  .confirm-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  /* One row that never wraps: chips keep their full width, and the ones that don't fit are hidden
+     (RecentFoods.jsx). Only a single chip wider than the whole row is cut off with …
+     The small padding (taken back by the margin) leaves room for focus rings and shadows. */
+  .chips {
+    overflow: hidden;
+    margin: calc(-1 * var(--space-1));
+    padding: var(--space-1);
+  }
+
+  .chips > li {
+    flex-shrink: 0;
+  }
+
+  /* Never shrinks (the hidden chips after it would squeeze it); capped at the row's width instead */
+  .chips > li:first-child {
+    max-width: 100%;
+  }
+
+  .chips .chip {
+    max-width: 100%;
+  }
+
+  .chip-hidden {
+    visibility: hidden;
+  }
+
+  .sheet {
+    width: min(var(--sheet-width), calc(100% - 2 * var(--space-4)));
+    max-height: 86vh;
+    max-height: 86dvh;
+    margin: auto; /* centred */
+    border-radius: var(--radius-sheet);
+  }
+
+  .sheet-handle {
+    display: none;
+  }
+
+  .sheet-header {
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-6);
+  }
+
+  .sheet-content {
+    padding: var(--space-6);
+  }
+}
+
+/* Hover only where there's a mouse, so a tapped button on a phone doesn't stay highlighted */
+@media (hover: hover) {
+  .btn:hover {
+    background-color: var(--hover);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--primary-bg);
+    filter: brightness(0.94);
+  }
+
+  .btn-danger:hover {
+    background-color: var(--danger-tint);
+    filter: brightness(0.97);
+  }
+
+  .btn-tint-info:hover {
+    background-color: var(--info-tint);
+    filter: brightness(0.97);
+  }
+
+  .btn-tint-success:hover {
+    background-color: var(--success-tint);
+    filter: brightness(0.97);
+  }
+
+  .btn:disabled:hover {
+    filter: none;
+  }
+
+  .row-button:hover,
+  .chip:hover,
+  .option:not(.selected):hover,
+  .macros summary:hover,
+  .password-toggle:hover {
+    background-color: var(--hover);
+  }
+
+  .options.segmented .option:not(.selected):hover {
+    background: none;
+  }
+}
+
+/* =====================================================================================
+   Screens
+   ===================================================================================== */
+
+/* ---------- Target card: the number, then how it was worked out (first run and Profile) ---------- */
 
 .target-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
-.card-label {
-  color: var(--muted);
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
-/* The one big number on the screen */
-.hero-number {
-  font-size: 2.75rem;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.hero-unit {
-  color: var(--muted);
-  font-size: 1rem;
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-/* Rows reach the card's edges (negative margin = the card's padding), separated by dividers */
+/* List rows that reach the card's edges (negative margin = the card's padding) */
 .breakdown {
-  margin: 16px -20px 0;
+  margin: var(--space-4) calc(-1 * var(--space-5)) 0;
 }
 
 .breakdown-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 16px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--border);
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--divider-subtle);
 }
 
 .breakdown-row dt {
@@ -307,7 +1663,7 @@ fieldset[aria-invalid='true'] .options {
 
 .breakdown-hint {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-small);
 }
 
 .breakdown-row.total {
@@ -315,82 +1671,444 @@ fieldset[aria-invalid='true'] .options {
 }
 
 .target-note {
-  margin: 4px -20px 0;
-  padding: 12px 20px 0;
-  border-top: 1px solid var(--border);
+  margin-top: var(--space-3);
+}
+
+.target-card.hero-card .hero-number {
+  font-size: var(--text-hero);
 }
 
 .target-method {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-small);
 }
 
-/* ---------- First run: one centred column, no navigation ---------- */
+/* ---------- Log in / sign up and the first run: one panel, no navigation ----------
+   Phones: the panel fills the screen. From 720px: a panel floating in the middle of --page. */
 
+.auth,
 .first-run {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 32px 16px 48px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-6);
+  width: 100%;
+  margin: 0 auto;
+  padding: calc(var(--space-8) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-8) + env(safe-area-inset-bottom));
+  background-color: var(--panel);
 }
 
+.auth-header,
 .first-run-header {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
+.auth-header img {
+  width: var(--space-10);
+  height: var(--space-10);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-control);
+}
+
+.auth-header h1,
 .first-run-header h1 {
-  font-size: 1.75rem;
+  font-size: var(--text-h1-mobile);
 }
 
+/* One column: the main button is full width here at every size */
+.auth .btn-block,
 .first-run .btn-block {
   width: 100%;
+  align-self: stretch;
 }
 
-/* ---------- Profile page ---------- */
-
-.profile-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.auth-switch {
+  color: var(--muted);
+  text-align: center;
 }
 
-.profile-main {
+@media (min-width: 720px) {
+  .auth,
+  .first-run {
+    width: calc(100% - 2 * var(--space-3)); /* never touches the screen's edges */
+    margin: var(--space-12) auto;
+    padding: var(--space-10);
+    border: 1px solid var(--border-panel);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .auth {
+    max-width: var(--auth-width);
+  }
+
+  .first-run {
+    max-width: var(--content-narrow);
+  }
+
+  .auth-header h1,
+  .first-run-header h1 {
+    font-size: var(--text-h1);
+  }
+}
+
+/* ---------- Profile: the overview (who, the target, this week, the settings list) and a page per setting ----------
+   Phones and tablets: one at a time, up to 720px wide; a setting's page has a back button in the header.
+   Laptops (1024px and up): the list on the left, the overview or the open setting on the right. */
+
+.page-profile {
+  max-width: var(--content-narrow);
+}
+
+/* Focus is put on these when a page opens (so screen readers start there): no ring, they aren't controls */
+.page-profile .profile-notice:focus,
+.page-title[tabindex='-1']:focus,
+.section-title[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* The avatar, name and email at the top */
+.profile-identity {
   display: flex;
-  flex-direction: column;
-  gap: 32px;
+  align-items: center;
+  gap: var(--space-4);
   min-width: 0;
 }
 
-.profile-details {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.identity-text {
+  min-width: 0;
 }
 
-/* ---------- Meal split: Breakfast [ 25 % ]  540 kcal ---------- */
+.identity-name {
+  font-size: var(--text-h2);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.identity-email {
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+
+/* "Saved. Daily target 1,850 → 1,720 kcal." with Undo at the end (an alert, see Alerts) */
+.profile-notice {
+  align-items: center;
+}
+
+.profile-notice::before {
+  margin-top: 0;
+}
+
+.notice-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Undo: in the alert's own colour, still 44px to tap (the negative margin keeps the alert slim) */
+.notice-action {
+  flex-shrink: 0;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-1)) calc(-1 * var(--space-2)) 0;
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Today | This week | Exercise. Narrow: rows, the name on the left and the numbers on the right.
+   When the card is 520px or wider: three columns side by side. */
+.profile-summary {
+  container-type: inline-size;
+  padding: 0;
+}
+
+.summary-stats {
+  display: grid;
+  margin: 0;
+}
+
+.summary-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+}
+
+.summary-stat + .summary-stat {
+  border-top: 1px solid var(--divider-subtle);
+}
+
+.summary-stat dt {
+  flex-shrink: 0;
+  color: var(--text-2);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.summary-stat dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+}
+
+.stat-value {
+  font-weight: 600;
+}
+
+.stat-sub {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.stat-sub.over {
+  color: var(--danger-text);
+}
+
+/* Loading, or "Couldn't load your summary" with Try again */
+.summary-problem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+}
+
+@container (min-width: 520px) {
+  .summary-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .summary-stat {
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .summary-stat + .summary-stat {
+    border-top: none;
+    border-left: 1px solid var(--divider-subtle);
+  }
+
+  .summary-stat dd {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+/* The settings list: each row's name, and a preview of what it's set to under it */
+.profile-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settings-row {
+  min-height: var(--row-height);
+}
+
+.settings-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.settings-label {
+  font-weight: 500;
+}
+
+.settings-preview {
+  color: var(--muted);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+
+/* The open one (laptops) */
+.settings-row.current {
+  background-color: var(--selected-bg);
+}
+
+.settings-row.current .settings-label {
+  color: var(--selected-text);
+}
+
+/* A setting's title and its one line of explanation (laptops; phones have the title in the header) */
+.setting-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.profile-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Exercise: the one option */
+.setting-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Account: name and email, Log out, then Change password */
+.account-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.info-list {
+  margin: 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--row-height);
+  padding: var(--space-2) var(--space-4);
+}
+
+.info-row + .info-row {
+  border-top: 1px solid var(--divider-subtle);
+}
+
+.info-row dt {
+  flex-shrink: 0;
+  color: var(--text-2);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.info-row dd {
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.account-password {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--divider);
+}
+
+/* Phones: a setting's page is at least the screen's height (under the header), and its form grows to fill
+   it, so Cancel and Save sit at the bottom of the screen even when the form is short */
+.page-setting {
+  min-height: calc(100vh - (var(--tap) + var(--space-3) + env(safe-area-inset-top)));
+  min-height: calc(100dvh - (var(--tap) + var(--space-3) + env(safe-area-inset-top)));
+}
+
+.page-setting > form,
+.page-setting > .account-page,
+.account-page > .account-password,
+.account-password > form {
+  flex: 1;
+}
+
+/* Cancel and Save at the end of a setting's form. Phones: a bar stuck to the bottom of the screen, Save on
+   top, both full width (the negative margins take it to the page's edges and over its bottom padding).
+   From 720px: a row at the bottom right of the form, Save last. */
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+  margin: auto calc(-1 * var(--space-4)) calc(-1 * (var(--space-8) + env(safe-area-inset-bottom)));
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  background-color: var(--bar);
+  border-top: 1px solid var(--divider);
+}
+
+@media (min-width: 720px) {
+  .page-setting {
+    min-height: 0;
+  }
+
+  .form-actions {
+    position: static;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin: var(--space-2) 0 0;
+    padding: var(--space-4) 0 0;
+    background: none;
+    border-top-color: var(--divider-subtle);
+  }
+}
+
+/* Laptops: who's logged in on top; under it the list (stays in view while the page scrolls) and the open part */
+@media (min-width: 1024px) {
+  .page-profile {
+    max-width: var(--content-wide);
+  }
+
+  .profile-columns {
+    display: grid;
+    grid-template-columns: clamp(var(--profile-list-min), var(--profile-list-share), var(--profile-list-max)) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-8);
+  }
+
+  .profile-list {
+    position: sticky;
+    top: var(--space-4);
+  }
+
+  .profile-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    min-width: 0;
+    max-width: var(--content-narrow);
+  }
+}
+
+/* ---------- Meal split: the four meals as rows in one list: Breakfast [ 25 % ]  540 kcal ---------- */
 
 .split-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .split-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  background-color: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .split-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 6.5rem 5.5rem;
+  grid-template-columns: minmax(0, 1fr) var(--split-input-col) var(--split-kcal-col);
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
+  min-height: var(--row-height);
+  padding: var(--space-2) var(--space-4);
+}
+
+.split-row + .split-row {
+  border-top: 1px solid var(--divider-subtle);
+}
+
+/* In a row the meal's name is the row's title, not a small form label */
+.split-row .field-label {
+  color: var(--text);
+  font-size: var(--text-body);
 }
 
 /* The % sits inside the box, after the number */
@@ -399,105 +2117,49 @@ fieldset[aria-invalid='true'] .options {
 }
 
 .split-input .input {
-  padding-right: 32px;
+  padding-right: var(--space-8);
   text-align: right;
 }
 
 .split-suffix {
   position: absolute;
   top: 50%;
-  right: 14px;
+  right: var(--input-pad);
   transform: translateY(-50%);
   color: var(--muted);
 }
 
 .split-kcal {
   color: var(--muted);
+  font-size: var(--text-small);
   text-align: right;
   white-space: nowrap;
 }
 
+/* "Total 100%", or "Total 95% · needs to be 100%" in --danger-text (words AND colour) */
 .split-total {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
   font-weight: 600;
 }
 
 .split-total.off {
-  color: var(--over);
+  color: var(--danger-text);
 }
 
-.split-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+/* "Use 25 / 35 / 30 / 10": as wide as its words */
+.split-reset {
+  align-self: flex-start;
 }
 
-/* ---------- Lists: rows inside one card, square, 1px dividers ---------- */
-
-.list-card {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow: hidden;
-}
-
-.list-card > li + li {
-  border-top: 1px solid var(--border);
-}
-
-/* "6 foods" above a list */
-.list-meta {
-  margin-bottom: -8px; /* sits close to the list it describes */
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-/* Name | serving | calories. The name column takes the spare space and wraps if it must. */
-.food-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 10px 16px;
-}
-
-.food-name {
-  display: flex;
-  flex-direction: column;
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
-
-.food-macros {
-  color: var(--muted);
-  font-size: 0.8125rem;
-  font-weight: 400;
-}
-
-.food-serving {
-  color: var(--muted);
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-.food-kcal {
-  min-width: 4.5em; /* calories line up in one column */
-  text-align: right;
-  white-space: nowrap;
-}
-
-/* ---------- Toolbar: search and the main action ---------- */
+/* ---------- Foods: search and "Add food" side by side, the count, then the list ---------- */
 
 .toolbar {
   display: flex;
-  align-items: flex-end;
-  gap: 12px;
+  align-items: flex-end; /* the button lines up with the search box, under its label */
+  gap: var(--space-3);
 }
 
 .toolbar-search {
@@ -505,225 +2167,74 @@ fieldset[aria-invalid='true'] .options {
 }
 
 .toolbar .btn {
-  min-height: 48px; /* same height as the search box beside it */
   flex-shrink: 0;
 }
 
-/* ---------- Sheet: slides up from the bottom on phones, a centred box on laptops ---------- */
-
-.sheet {
-  width: 100%;
-  max-width: 100%;
-  max-height: 92svh;
-  margin: auto 0 0; /* pinned to the bottom of the screen */
-  padding: 0;
-  border: 1px solid var(--border);
-  border-bottom: none;
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
-  background-color: var(--surface);
-  color: var(--ink);
+/* The count sits close to the list it counts */
+.toolbar ~ .list-meta {
+  margin-bottom: calc(-1 * var(--space-3));
 }
 
-.sheet[open] {
-  animation: sheet-up 0.2s ease-out;
-}
-
-.sheet::backdrop {
-  background-color: var(--scrim);
-}
-
-@keyframes sheet-up {
-  from {
-    transform: translateY(24px);
-    opacity: 0;
-  }
-}
-
-.sheet-header {
-  position: sticky; /* the title and close button stay put while a long form scrolls */
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 8px 8px 20px;
-  background-color: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-
-.sheet-header h2 {
-  font-size: 1.1rem;
-}
-
-.sheet-content {
-  padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
-}
-
-/* A button that's only an icon: still 44px to tap */
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  background: none;
-  border: none;
-  border-radius: var(--radius-control);
-  color: var(--muted);
-}
-
-/* ---------- Food form ---------- */
-
-.food-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.field-trio {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.macros summary {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  list-style: none; /* our own arrow below, the same in every browser */
-}
-
-.macros summary::-webkit-details-marker {
-  display: none;
-}
-
-.macros summary::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: rotate(-45deg);
-  transition: transform 0.15s ease;
-}
-
-.macros[open] summary::before {
-  transform: rotate(45deg);
-}
-
-/* ---------- Rows you can tap (a food to edit, an entry to change) ---------- */
-
-.row-button {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 0;
-  background: none;
-  border: none;
-  color: inherit;
-  text-align: left;
-}
-
-.row-button .food-row {
-  flex: 1;
-  min-width: 0;
-}
-
-.row-button:focus-visible {
-  outline-offset: -2px; /* inside the row, so the card's rounded corners don't cut it off */
-}
-
-.row-chevron {
-  display: flex;
-  padding-right: 12px;
-  margin-left: -4px;
-  color: var(--muted);
-}
-
-/* ---------- Buttons: destructive, asking first ---------- */
-
-.btn-danger {
-  color: var(--over);
-}
-
-.sheet-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* "Delete Egg? …" with Keep it / Delete. A divider above it, not another box. */
-.confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.confirm-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-/* ---------- Today: day header, summary card, actions, recent foods ---------- */
+/* ---------- Today: the day's sections, one under the other ---------- */
 
 .today-stack,
 .today-main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-6);
   min-width: 0;
 }
 
-.day-header {
+/* A section's title (H3 size), with its count or total as a pill: "Logged  2 items" */
+.section-head {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.day-arrows {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+  gap: var(--space-2);
+  font-size: var(--text-h3);
 }
 
-.icon-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.summary-card {
+.recent,
+.meals,
+.day-log {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-3);
 }
 
-/* Over target: the hero number and the bar turn --over, and the label says "Over target" */
-.summary-card.over .hero-number {
-  color: var(--over);
+/* Add food (primary) and Quick add: two equal, thumb-sized buttons on a phone */
+.day-actions {
+  display: flex;
+  gap: var(--space-3);
 }
 
-/* ---------- The day's ring: what's left in the middle, eaten and left underneath ---------- */
+.day-actions .btn {
+  flex: 1;
+}
 
+.exercise-add {
+  align-self: flex-start;
+}
+
+/* The food's name at the top of the "how many servings?" sheet */
+.quantity-name {
+  font-size: var(--text-h3);
+  font-weight: 600;
+}
+
+/* ---------- The day's ring: what's left in the middle, eaten and left as tinted tiles under it ---------- */
+
+/* The day's main card (a .hero-card): one centred column at every size: ring, tiles, then the target,
+   exercise and macros lines */
 .ring-card {
   text-align: center;
 }
 
 .ring {
   position: relative;
-  width: 172px;
-  height: 172px;
-  margin: 4px auto 0;
+  width: var(--ring-size);
+  height: var(--ring-size);
+  margin: var(--space-1) auto 0;
 }
 
 /* Turned a quarter, so the ring starts at the top (12 o'clock) and fills clockwise */
@@ -739,20 +2250,22 @@ fieldset[aria-invalid='true'] .options {
   fill: none;
 }
 
+/* A soft periwinkle track, so even an empty ring has colour */
 .ring-track {
-  stroke: var(--border);
+  stroke: var(--info-tint);
 }
 
+/* Like a chart: the first series colour (--accent), --danger-icon once over */
 .ring-fill {
   stroke: var(--accent);
   stroke-linecap: round;
   /* Draws itself in when it first appears, then slides to each new total */
-  animation: ring-in 0.8s ease-out;
-  transition: stroke-dashoffset 0.5s ease-out, stroke 0.3s ease;
+  animation: ring-in var(--motion-ring-draw) ease-out;
+  transition: stroke-dashoffset var(--motion-ring-slide) ease-out, stroke var(--motion);
 }
 
 .summary-card.over .ring-fill {
-  stroke: var(--over);
+  stroke: var(--danger-icon);
 }
 
 /* From empty (offset = the whole circle) to wherever the style says */
@@ -772,41 +2285,37 @@ fieldset[aria-invalid='true'] .options {
 }
 
 .ring-number {
-  font-size: 2.25rem;
+  font-size: var(--text-hero);
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
 }
 
 .summary-card.over .ring-number {
-  color: var(--over);
+  color: var(--danger-text);
 }
 
 .ring-unit {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-small);
   font-weight: 500;
 }
 
-/* Eaten | Left, side by side, with a divider between */
+/* Eaten | Left as two soft tiles, side by side under the ring */
 .ring-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  margin: 16px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
 }
 
-.ring-stat + .ring-stat {
-  border-left: 1px solid var(--border);
+.ring-stat {
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
 }
 
 .ring-stat dt {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-small);
   font-weight: 500;
 }
 
@@ -815,297 +2324,117 @@ fieldset[aria-invalid='true'] .options {
   font-weight: 600;
 }
 
-/* On its own line, so both columns always look the same, however narrow */
 .ring-pct {
-  display: block;
-  color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-small);
   font-weight: 400;
 }
 
-/* A small dot matching the ring: the eaten part, and the empty track (or --over) */
-.ring-key {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--border);
+.ring-stat.eaten {
+  background-color: var(--info-tint);
+  color: var(--info-text);
 }
 
-.ring-key.eaten {
-  background-color: var(--accent);
+.ring-stat.left {
+  background-color: var(--success-tint);
+  color: var(--success-text);
 }
 
-.ring-key.over,
-.summary-card.over .ring-key.eaten {
-  background-color: var(--over);
+.ring-stat.over {
+  background-color: var(--danger-tint);
+  color: var(--danger-text);
 }
 
 .ring-budget {
-  margin-top: 8px;
+  margin-top: var(--space-2);
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-small);
 }
 
-.progress {
-  height: 8px;
-  margin-top: 12px;
-  border-radius: 999px;
-  background-color: var(--border);
-  overflow: hidden;
+@media (min-width: 720px) {
+  .ring-card {
+    padding: var(--space-6);
+  }
 }
 
-.progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  background-color: var(--accent);
-  transition: width 0.3s ease;
-}
+/* ---------- Meals: one card each, tap to open, drop a food on it to add ---------- */
 
-.summary-card.over .progress-fill {
-  background-color: var(--over);
-}
-
-.summary-totals {
-  margin-top: 8px;
-  color: var(--muted);
-}
-
-.summary-totals strong {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.summary-macros {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-/* How "remaining" was worked out: 2,161 target + 300 exercise − 1,502 eaten = 959 left */
-.summary-formula {
-  padding-top: 8px;
-  margin-top: 4px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-/* Under the exercise rows, or on its own when there's none yet */
-.exercise-add {
-  align-self: flex-start;
-}
-
-/* A setting that saves as soon as it's changed (Profile → Exercise) */
-.setting-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.day-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.day-actions .btn {
-  flex: 1; /* two equal, thumb-sized buttons on a phone */
-}
-
-.recent {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.recent .list-meta,
-.meals .list-meta,
-.day-log .list-meta {
-  margin-bottom: 0;
-  font-weight: 500;
-}
-
-.day-log {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Chips scroll sideways, edge to edge on a phone (negative margin = the page padding) */
-.chips {
-  display: flex;
-  gap: 8px;
-  margin: 0 -16px;
-  padding: 0 16px 4px;
-  list-style: none;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.chip-kcal {
-  color: var(--muted);
-  font-size: 0.875rem;
-  font-weight: 400;
-}
-
-/* ---------- Picking a food (sheet on phones, library panel on laptops) ---------- */
-
-.picker {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-}
-
-.picker-list {
-  margin: 0 -20px; /* rows reach the edges of the sheet or card */
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--border);
-}
-
-.picker-list > li + li {
-  border-top: 1px solid var(--border);
-}
-
-.picker-list .food-row {
-  padding-left: 20px;
-  padding-right: 20px;
-}
-
-.picker .empty-state {
-  padding: 24px 0 8px;
-}
-
-.picker-message {
-  padding: 8px 0;
-}
-
-/* ---------- How many servings: − [ 1.5 ] +   = 158 kcal ---------- */
-
-.quantity-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.quantity-name {
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-/* "Egg is already logged today (1 large). This adds to it: 2 large in total." A divider, not a box. */
-.merge-note {
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  font-size: 0.9375rem;
-}
-
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stepper-btn {
-  width: 48px;
-  min-height: 48px;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.stepper-input {
-  width: 88px;
-  text-align: center;
-}
-
-.stepper-total {
-  margin-left: auto;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* ---------- Meals on Today: one card each, tap to open, drop a food on it to add ---------- */
-
-.meals {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+/* The four cards sit in a tray: a sunken well that holds them together as one block,
+   each card raised inside it (like the grouped rows in the design's reference) */
 .meal-list {
   display: grid;
   /* One column on a phone, two by two once there's room. Never three: 3 × 40% is more than 100%. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(260px, 40%)), 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(var(--meal-card-min), 40%)), 1fr));
+  gap: var(--space-2);
   margin: 0;
-  padding: 0;
+  padding: var(--space-2);
   list-style: none;
+  background-color: var(--sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-large);
 }
 
-/* Closer than the log's outline, so two cards' dashed outlines never touch */
+/* Inside the tray: the rows' radius, and the dashed outline right on the edge so two never touch */
+.meal-list .drop-zone,
+.meal-list .meal-card {
+  border-radius: var(--radius-control);
+}
+
 .meal-list .drop-zone {
-  outline-offset: 2px;
+  outline-offset: 0;
 }
 
 /* Breakfast ........ 144 / 540 kcal ›
    [bar]
-   Egg, Toast ............ 396 left */
+   Egg, Toast ............ (396 left) */
 .meal-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-3);
   width: 100%;
-  padding: 16px;
   color: inherit;
   text-align: left;
+  transition: background-color var(--motion);
+}
+
+.meal-card:active {
+  background-color: var(--hover);
 }
 
 .meal-card-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
 }
 
 .meal-name {
   flex: 1;
+  font-size: var(--text-h3);
   font-weight: 600;
 }
 
 .meal-kcal {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: var(--text-small);
   white-space: nowrap;
 }
 
 .meal-kcal strong {
-  color: var(--ink);
-  font-size: 1rem;
-  font-weight: 600;
+  color: var(--text);
+  font-size: var(--text-body);
 }
 
 .meal-chevron {
   display: flex;
-  margin-right: -4px;
+  margin-right: calc(-1 * var(--space-1));
   color: var(--muted);
 }
 
 .meal-card-foot {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  font-size: 0.875rem;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-small);
 }
 
 /* What's in it, on one line: cut off with … when it's long */
@@ -1118,43 +2447,55 @@ fieldset[aria-invalid='true'] .options {
 }
 
 .meal-status {
-  color: var(--muted);
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.meal-status.over {
-  color: var(--over);
-  font-weight: 500;
-}
+/* ---------- Picking a food (a sheet on phones and tablets, the library panel on desktops) ---------- */
 
-/* Inside a meal: back to the day above the meal's title */
-.meal-header {
+.picker {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-3);
+  min-height: 0;
 }
 
-.back-btn {
-  gap: 4px;
-  margin-left: -8px;
-  padding: 0 14px 0 6px;
-  background: none;
-  border-color: transparent;
+/* Rows reach the edges of the sheet (negative margin = its padding) */
+.picker-list {
+  margin: 0 calc(-1 * var(--space-4));
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--divider-subtle);
 }
 
-/* ---------- Drag and drop ---------- */
+.picker-list > li + li {
+  border-top: 1px solid var(--divider-subtle);
+}
 
-/* The moving copy (drawn in <body> by the drag library). The one shadow in the app, so it visibly lifts. */
+.picker-list .food-row {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+
+.picker .empty-state {
+  padding: var(--space-6) 0 var(--space-2);
+}
+
+.picker-message {
+  padding: var(--space-2) 0;
+}
+
+/* ---------- Drag and drop (desktop: library → meal; phones: recent chips → meal) ---------- */
+
+/* The moving copy (drawn in <body> by the drag library), lifted with the floating shadow */
 .drag-clone {
-  background-color: var(--surface);
+  background-color: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
-  box-shadow: var(--lift);
+  box-shadow: var(--shadow-float);
 }
 
 .chip.drag-clone {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 /* The still copy left in the list while its food is dragged out: dragging copies, it doesn't move */
@@ -1168,26 +2509,26 @@ fieldset[aria-invalid='true'] .options {
   transform: none !important;
 }
 
-/* The log is the drop zone: a dashed outline shows up while dragging, and turns --accent with
-   an --accent-soft fill when a food is over it. outline (not border) so nothing jumps. */
+/* Where a food can go: a dashed outline while dragging, --accent with a --selected-bg fill when a
+   food is over it. outline (not border) so nothing jumps. */
 .drop-zone {
   border-radius: var(--radius-card);
   outline: 2px dashed transparent;
-  outline-offset: 4px;
-  transition: outline-color 0.15s ease, background-color 0.15s ease;
+  outline-offset: var(--space-1);
+  transition: outline-color var(--motion), background-color var(--motion);
 }
 
 .drop-zone.ready {
-  outline-color: var(--muted);
+  outline-color: var(--placeholder);
 }
 
 .drop-zone.active {
   outline-color: var(--accent);
-  background-color: var(--accent-soft);
+  background-color: var(--selected-bg);
 }
 
 .drop-zone.active > .card {
-  background-color: var(--accent-soft);
+  background-color: var(--selected-bg);
 }
 
 /* The room the library makes for a dropped item. A drop opens the add sheet instead,
@@ -1196,495 +2537,55 @@ fieldset[aria-invalid='true'] .options {
   display: none;
 }
 
-/* ---------- History: weekly average, then one row per day ---------- */
+@media (min-width: 720px) {
+  .sheet .picker-list {
+    margin: 0 calc(-1 * var(--space-6));
+  }
 
-.history {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 720px; /* a day's bar wider than this is harder to read, not easier */
+  .sheet .picker-list .food-row {
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
+  }
 }
 
-.week-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.week-label {
-  font-weight: 500;
-}
-
-/* Day | kcal on the first line, bar | status on the second */
-.history-row {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  /* A fixed right column (fits "2,300 / 1,947 kcal"), so every day's bar is the same length */
-  grid-template-columns: minmax(0, 1fr) 9.5rem;
-  align-items: center;
-  gap: 8px 16px;
-  padding: 12px 16px;
-}
-
-.history-day {
-  font-weight: 500;
-}
-
-.history-kcal {
-  color: var(--muted);
-  font-size: 0.875rem;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.history-kcal strong {
-  color: var(--ink);
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-/* A thin track with a fill: how much of that day's target was eaten (full, in --over, when over) */
-.meter {
-  height: 6px;
-  border-radius: 999px;
-  background-color: var(--border);
-  overflow: hidden;
-}
-
-.meter-fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background-color: var(--accent);
-}
-
-.meter-fill.over {
-  background-color: var(--over);
-}
-
-.history-status {
-  color: var(--muted);
-  font-size: 0.875rem;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.history-status.over {
-  color: var(--over);
-  font-weight: 500;
-}
-
-/* "Burned 300 kcal · added to the budget": its own line under the bar, only on days with exercise */
-.history-burned {
-  grid-column: 1 / -1;
-  margin-top: -4px;
-  color: var(--muted);
-  font-size: 0.8125rem;
-}
-
-/* ---------- Log in / sign up: one centred column, like the first run ---------- */
-
-.auth {
-  max-width: 420px;
-  margin: 0 auto;
-  padding: 48px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.auth-header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.auth-header img {
-  border-radius: 12px;
-}
-
-.auth-header h1 {
-  font-size: 1.75rem;
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.auth-form .btn-block,
-.auth .btn-block {
-  width: 100%;
-}
-
-/* "Your session has expired...": a calm note, not an error */
-.auth-notice {
-  padding: 12px 16px;
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-}
-
-.auth-switch {
-  color: var(--muted);
-  text-align: center;
-}
-
-/* A button that looks like a link, still 44px tall to tap */
-.link-btn {
-  min-height: 44px;
-  padding: 0 4px;
-  background: none;
-  border: none;
-  color: var(--accent-strong);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* ---------- Password field with Show / Hide inside it ---------- */
-
-.password-input {
-  position: relative;
-}
-
-.password-input .input {
-  padding-right: 72px; /* room for the button */
-}
-
-.password-toggle {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  bottom: 2px;
-  min-width: 64px;
-  padding: 0 12px;
-  background: none;
-  border: none;
-  border-radius: calc(var(--radius-control) - 2px);
-  color: var(--accent-strong);
-  font-weight: 600;
-}
-
-/* ---------- Avatar: your initial in a circle ---------- */
-
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background-color: var(--accent-soft);
-  color: var(--accent-strong);
-  font-weight: 600;
-  line-height: 1;
-}
-
-.avatar-small {
-  width: 24px;
-  height: 24px;
-  font-size: 0.8125rem;
-}
-
-.avatar-large {
-  width: 52px;
-  height: 52px;
-  font-size: 1.25rem;
-}
-
-/* On the active Profile tab the initial is filled in, the same way the other tabs' icons change colour */
-.nav-item.active .avatar {
-  background-color: var(--accent-strong);
-  color: var(--surface);
-}
-
-/* Who's logged in, at the bottom of the laptop sidebar (hidden on phones) */
-.nav-user {
-  display: none;
-}
-
-/* ---------- Account card on the Profile page ---------- */
-
-.account-card {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.account-who {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.account-name {
-  font-size: 1.15rem;
-  overflow-wrap: anywhere;
-}
-
-.account-email {
-  font-size: 0.9375rem;
-  overflow-wrap: anywhere;
-}
-
-.account-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.account-actions .btn {
-  flex: 1;
-}
-
-.profile-side {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* ---------- Loading and "can't connect" screens ---------- */
-
-.status-screen {
-  min-height: 100svh;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-}
-
-.status-card {
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  text-align: center;
-}
-
-.status-card h1 {
-  font-size: 1.25rem;
-}
-
-/* ---------- Navigation: a bottom tab bar on phones ---------- */
-
-.nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 100;
-  background-color: var(--surface);
-  border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.nav-brand {
-  display: none; /* laptop only, see below */
-}
-
-.nav-list {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.nav-item {
-  width: 100%;
-  min-height: 60px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-/* The pill behind the icon marks the open page, so it isn't shown by colour alone */
-.nav-icon {
-  display: inline-flex;
-  padding: 3px 16px;
-  border-radius: 999px;
-}
-
-.nav-item.active {
-  color: var(--accent-strong);
-  font-weight: 600;
-}
-
-.nav-item.active .nav-icon {
-  background-color: var(--accent-soft);
-}
-
-/* ---------- Laptop: the same nav becomes a left sidebar ---------- */
-
+/* Desktop: the day on the left, the food library pinned to the page's right edge */
 @media (min-width: 1024px) {
-  .app {
-    display: grid;
-    grid-template-columns: 232px 1fr;
+  /* Today uses the panel's full width, so the library sits against the right edge on any screen */
+  .page-today {
+    max-width: none;
   }
 
-  .nav {
-    position: sticky;
-    top: 0;
-    height: 100svh;
-    padding: 24px 12px;
-    border-top: none;
-    border-right: 1px solid var(--border);
-  }
-
-  .nav-brand {
-    display: block;
-    padding: 0 12px 20px;
-    font-weight: 600;
-  }
-
-  .nav-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .nav-item {
-    min-height: 44px;
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 12px;
-    padding: 0 12px;
-    border-radius: var(--radius-control);
-    font-size: 0.95rem;
-  }
-
-  .nav-icon {
-    padding: 0;
-  }
-
-  /* In the sidebar the whole row is the pill */
-  .nav-item.active {
-    background-color: var(--accent-soft);
-  }
-
-  .nav-item.active .nav-icon {
-    background: none;
-  }
-
-  .page {
-    padding: 32px 32px 48px;
-    gap: 24px;
-  }
-
-  .page-header h1 {
-    font-size: 1.75rem;
-  }
-
-  .btn-block {
-    width: auto;
-    align-self: flex-start;
-  }
-
-  /* Target on the left (stays in view while you scroll the form), details on the right */
-  .profile-layout {
-    display: grid;
-    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
-    align-items: start;
-    gap: 24px;
-  }
-
-  /* The account and target stay in view while you scroll the details form */
-  .profile-side {
-    position: sticky;
-    top: 32px;
-  }
-
-  .nav {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .nav-user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: auto; /* pushed to the bottom of the sidebar */
-    padding: 16px 12px 0;
-    border-top: 1px solid var(--border);
-    min-width: 0;
-  }
-
-  .nav-user-text {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  .nav-user-name {
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .nav-user-email {
-    color: var(--muted);
-    font-size: 0.8125rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .sheet {
-    width: min(520px, calc(100% - 32px));
-    max-height: 86svh;
-    margin: auto; /* centred */
-    border-bottom: 1px solid var(--border);
-    border-radius: var(--radius-card);
-  }
-
-  .food-form .btn-block,
-  .quantity-form .btn-block,
-  .sheet-stack .btn-block {
-    width: 100%;
-  }
-
-  /* Today: the log on the left, the food library on the right (room for drag and drop in step 6) */
+  /* The library takes a share of the width (280 to 380px), so on a narrow desktop the day keeps
+     enough room for the meal cards */
   .today-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+    grid-template-columns: minmax(0, 1fr) clamp(var(--library-min), var(--library-share), var(--library-max));
     align-items: start;
-    gap: 24px;
+    gap: var(--space-6);
   }
 
+  /* The day fills the rest, up to 720px so the cards don't stretch on a wide screen;
+     any space left over is shared on both sides of it */
   .today-main {
-    gap: 24px;
+    gap: var(--space-8);
+    width: 100%;
+    max-width: var(--content-narrow);
+    margin: 0 auto;
   }
 
   .day-actions .btn {
     flex: 0 0 auto;
   }
 
-  .chips {
-    flex-wrap: wrap; /* plenty of width: wrap instead of scrolling */
-    margin: 0;
-    padding: 0;
-  }
-
-  /* The library stays in view while the log scrolls; its list scrolls on its own */
+  /* The library stays in view while the day scrolls; its list scrolls on its own */
   .library-panel {
     position: sticky;
-    top: 32px;
+    top: var(--space-4);
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    max-height: calc(100svh - 64px);
+    gap: var(--space-3);
+    max-height: calc(100vh - 2 * var(--space-4));
+    max-height: calc(100dvh - 2 * var(--space-4));
     overflow: hidden;
   }
 
@@ -1695,40 +2596,84 @@ fieldset[aria-invalid='true'] .options {
   .library-panel .picker-list {
     flex: 1;
     overflow-y: auto;
-    margin-bottom: -20px; /* down to the card's bottom edge */
-  }
-}
-
-/* Some people turn animations off in their system settings: respect that */
-@media (prefers-reduced-motion: reduce) {
-  .sheet[open] {
-    animation: none;
+    margin: 0 calc(-1 * var(--space-5)) calc(-1 * var(--space-5)); /* to the card's edges */
   }
 
-  /* The ring just shows the value, without drawing or sliding */
-  .ring-fill {
-    animation: none;
-    transition: none;
-  }
-}
-
-/* Hover only where there's a mouse, so a tapped button on a phone doesn't stay highlighted */
-@media (hover: hover) {
-  .nav-item:not(.active):hover,
-  .icon-btn:hover {
-    color: var(--ink);
+  .library-panel .picker-list .food-row {
+    padding-left: var(--space-5);
+    padding-right: var(--space-5);
   }
 }
 
 @media (hover: hover) {
-  .row-button:hover,
-  .chip:hover {
-    background-color: var(--ground);
+  .meal-card:hover {
+    background-color: var(--hover);
   }
 }
 
-@media (hover: hover) and (min-width: 1024px) {
-  .nav-item:not(.active):hover {
-    background-color: var(--ground);
-  }
+/* ---------- History: the week's controls, the weekly average, then one row per day ---------- */
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* "Last 7 days · 12 – 18 Oct" with the arrows */
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.week-label {
+  font-weight: 500;
+}
+
+.day-arrows {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Day | kcal on the first line, bar | status pill on the second */
+.history-row {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  /* A fixed right column (fits "2,300 / 1,947 kcal"), so every day's bar is the same length */
+  grid-template-columns: minmax(0, 1fr) var(--history-kcal-col);
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.history-day {
+  font-weight: 500;
+}
+
+.history-kcal {
+  color: var(--muted);
+  font-size: var(--text-small);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.history-kcal strong {
+  color: var(--text);
+  font-size: var(--text-body);
+}
+
+.history-status {
+  justify-self: end;
+}
+
+/* "Burned 300 kcal · added to the budget": its own line under the bar, only on days with exercise */
+.history-burned {
+  grid-column: 1 / -1;
+  margin-top: calc(-1 * var(--space-1));
+  color: var(--muted);
+  font-size: var(--text-small);
 }

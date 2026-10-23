@@ -1,45 +1,44 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import FormActions from './FormActions';
 
-// "Add exercise calories to my daily budget". One checkbox that saves as soon as it's changed.
+// "Add exercise calories to my daily budget": one checkbox, saved with Save (Cancel throws the change away).
 // Today follows it straight away; days already logged keep the setting they had (like the target).
-function ExerciseSetting({ profile, onSave })
+// onDirtyChange: whether it's been changed and not saved.
+function ExerciseSetting({ profile, onSave, onCancel, onDirtyChange })
 {
+    const [isOn, setIsOn] = useState(profile.exerciseInBudget);
+    const [serverError, setServerError] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [result, setResult] = useState(null); // { ok, text } after saving
 
-    const handleChange = async (e) => {
-        const on = e.target.checked;
+    const isDirty = isOn !== profile.exerciseInBudget;
+    useEffect(() => {
+        onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+    useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setServerError(null);
         setIsSaving(true);
-        setResult(null);
         try
         {
-            await onSave({ exerciseInBudget: on }); // App updates the profile, which ticks the box
-            setResult({
-                ok: true,
-                text: on
-                    ? "Saved. Exercise is now added to today's budget and every new day's."
-                    : "Saved. Exercise still shows on Today, but isn't added to your budget.",
-            });
+            await onSave({ exerciseInBudget: isOn }); // the page then goes back to the overview
         }
         catch (err)
         {
-            setResult({ ok: false, text: `Couldn't save: ${err.message}` });
-        }
-        finally
-        {
+            setServerError(err.message);
             setIsSaving(false);
         }
     };
 
     return (
-        <div className="setting-form">
+        <form className="setting-form" onSubmit={handleSubmit} noValidate>
             <div className="options">
-                <label className={profile.exerciseInBudget ? 'option selected' : 'option'}>
+                <label className={isOn ? 'option selected' : 'option'}>
                     <input
                         type="checkbox"
-                        checked={profile.exerciseInBudget}
-                        onChange={handleChange}
-                        disabled={isSaving}
+                        checked={isOn}
+                        onChange={(e) => setIsOn(e.target.checked)}
                         aria-describedby="exercise-setting-hint"
                     />
                     <span className="option-text">
@@ -51,8 +50,11 @@ function ExerciseSetting({ profile, onSave })
                     </span>
                 </label>
             </div>
-            {result && <p className={result.ok ? 'form-success' : 'form-error'} role={result.ok ? 'status' : 'alert'}>{result.text}</p>}
-        </div>
+
+            {serverError && <p className="form-error" role="alert">Couldn't save: {serverError}</p>}
+
+            <FormActions isSaving={isSaving} onCancel={onCancel} />
+        </form>
     );
 }
 

@@ -1,7 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SEXES, ACTIVITY_LEVELS, GOALS } from '../profileOptions';
-import { todayString, yearsBefore } from '../dates';
-import { formatKcal } from '../numbers';
+import { ageOn, todayString, yearsBefore } from '../dates';
+import FormActions from './FormActions';
+
+// Which fields each version of the form shows. The saved profile always gets all of them:
+// the ones not shown keep their saved values.
+const FIELDS = {
+    all: ['sex', 'birthDate', 'heightCm', 'weightKg', 'activityLevel', 'goal'],
+    body: ['sex', 'birthDate', 'heightCm', 'weightKg', 'activityLevel'],
+    goal: ['goal'],
+};
 
 // Empty on first run, or filled with the saved profile when editing.
 // Numbers are kept as text while typing, because an input's value is always text.
@@ -44,30 +52,40 @@ function validate(values)
     return errors;
 }
 
-// The profile form, used on the first-run screen and on the Profile page.
+// The profile form. First run: every field and one button (submitLabel). Profile's sub-pages:
+// fields = 'body' or 'goal', with Save and Cancel (onCancel), and onDirtyChange says whether anything changed.
 // It only checks and collects the values; onSave (from the parent) does the saving and returns the saved profile.
-function ProfileForm({ profile, submitLabel, onSave })
+// If saving fails, the message shows here and what you typed stays.
+function ProfileForm({ profile, submitLabel, onSave, fields = 'all', onCancel = null, onDirtyChange })
 {
     const [values, setValues] = useState(() => initialValues(profile));
     const [errors, setErrors] = useState({});
     const [serverError, setServerError] = useState(null);
-    const [success, setSuccess] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    const shown = FIELDS[fields];
+    const isShown = (name) => shown.includes(name);
+    const isDirty = shown.some((name) => values[name] !== initialValues(profile)[name]);
+
+    // Tell the page whether leaving now would lose changes (and that it wouldn't, once this form goes)
+    useEffect(() => {
+        onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+    useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
     // One change handler for every field: the input's name says which value to update
     const handleChange = (e) => {
         const { name, value } = e.target;
         setValues((prev) => ({ ...prev, [name]: value }));
         setErrors((prev) => ({ ...prev, [name]: undefined })); // the user is fixing it: hide the old message
-        setSuccess(null);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setServerError(null);
-        setSuccess(null);
 
-        const found = validate(values);
+        // Only the fields on screen can be fixed here, so only they are checked
+        const found = Object.fromEntries(Object.entries(validate(values)).filter(([name]) => isShown(name)));
         setErrors(found);
         const firstProblem = Object.keys(found)[0];
         if (firstProblem)
@@ -79,13 +97,12 @@ function ProfileForm({ profile, submitLabel, onSave })
         setIsSaving(true);
         try
         {
-            const saved = await onSave({
+            // The parent moves on (first run: the result; Profile: back to the overview with the new target)
+            await onSave({
                 ...values,
                 heightCm: Number(values.heightCm),
                 weightKg: Number(values.weightKg),
             });
-            // Only when editing: on first run the parent shows the result screen instead
-            if (profile) setSuccess(`Saved. Your daily target is now ${formatKcal(saved.target.targetKcal)} kcal.`);
         }
         catch (err)
         {
@@ -133,68 +150,79 @@ function ProfileForm({ profile, submitLabel, onSave })
         </fieldset>
     );
 
+    // The age a valid date of birth gives, shown under the field (the target is worked out from it)
+    const age = /^\d{4}-\d{2}-\d{2}$/.test(values.birthDate) ? ageOn(values.birthDate, todayString()) : null;
+
     return (
         <form className="profile-form" onSubmit={handleSubmit} noValidate>
-            {choiceGroup('sex', 'Sex', SEXES, 'options segmented')}
+            {isShown('sex') && choiceGroup('sex', 'Sex', SEXES, 'options segmented')}
 
-            <div className="field">
-                <label htmlFor="birthDate" className="field-label">Date of birth</label>
-                <input
-                    id="birthDate"
-                    name="birthDate"
-                    type="date"
-                    className="input"
-                    max={yearsBefore(todayString(), 18)}
-                    value={values.birthDate}
-                    onChange={handleChange}
-                    {...describe('birthDate')}
-                />
-                {errorFor('birthDate')}
-            </div>
-
-            <div className="field-pair">
+            {isShown('birthDate') && (
                 <div className="field">
-                    <label htmlFor="heightCm" className="field-label">Height (cm)</label>
+                    <label htmlFor="birthDate" className="field-label">Date of birth</label>
                     <input
-                        id="heightCm"
-                        name="heightCm"
-                        type="number"
-                        inputMode="decimal"
-                        step="0.1"
-                        className="input num"
-                        value={values.heightCm}
+                        id="birthDate"
+                        name="birthDate"
+                        type="date"
+                        className="input"
+                        max={yearsBefore(todayString(), 18)}
+                        value={values.birthDate}
                         onChange={handleChange}
-                        {...describe('heightCm')}
+                        {...describe('birthDate')}
                     />
-                    {errorFor('heightCm')}
+                    {age !== null && !errors.birthDate && <p className="field-hint num">Age {age}</p>}
+                    {errorFor('birthDate')}
                 </div>
+            )}
 
-                <div className="field">
-                    <label htmlFor="weightKg" className="field-label">Weight (kg)</label>
-                    <input
-                        id="weightKg"
-                        name="weightKg"
-                        type="number"
-                        inputMode="decimal"
-                        step="0.1"
-                        className="input num"
-                        value={values.weightKg}
-                        onChange={handleChange}
-                        {...describe('weightKg')}
-                    />
-                    {errorFor('weightKg')}
+            {isShown('heightCm') && (
+                <div className="field-pair">
+                    <div className="field">
+                        <label htmlFor="heightCm" className="field-label">Height (cm)</label>
+                        <input
+                            id="heightCm"
+                            name="heightCm"
+                            type="number"
+                            inputMode="decimal"
+                            step="0.1"
+                            className="input num"
+                            value={values.heightCm}
+                            onChange={handleChange}
+                            {...describe('heightCm')}
+                        />
+                        {errorFor('heightCm')}
+                    </div>
+
+                    <div className="field">
+                        <label htmlFor="weightKg" className="field-label">Weight (kg)</label>
+                        <input
+                            id="weightKg"
+                            name="weightKg"
+                            type="number"
+                            inputMode="decimal"
+                            step="0.1"
+                            className="input num"
+                            value={values.weightKg}
+                            onChange={handleChange}
+                            {...describe('weightKg')}
+                        />
+                        {errorFor('weightKg')}
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {choiceGroup('activityLevel', 'Activity level', ACTIVITY_LEVELS)}
-            {choiceGroup('goal', 'Goal', GOALS)}
+            {isShown('activityLevel') && choiceGroup('activityLevel', 'Activity level', ACTIVITY_LEVELS)}
+            {isShown('goal') && choiceGroup('goal', 'Goal', GOALS)}
 
             {serverError && <p className="form-error" role="alert">Couldn't save: {serverError}</p>}
-            {success && <p className="form-success" role="status">{success}</p>}
 
-            <button type="submit" className="btn btn-primary btn-block" disabled={isSaving}>
-                {isSaving ? 'Saving…' : submitLabel}
-            </button>
+            {onCancel ? (
+                <FormActions isSaving={isSaving} onCancel={onCancel} />
+            ) : (
+                <button type="submit" className="btn btn-primary btn-block" disabled={isSaving}>
+                    {isSaving ? 'Saving…' : submitLabel}
+                </button>
+            )}
         </form>
     );
 }

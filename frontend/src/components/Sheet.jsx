@@ -34,6 +34,8 @@ function Sheet({ title, isOpen, onClose, children })
             {/* Only rendered while open, so a form inside starts fresh every time */}
             {isOpen && (
                 <div className="sheet-panel">
+                    {/* The grab handle of a bottom sheet (phones only, App.css) */}
+                    <div className="sheet-handle" aria-hidden="true" />
                     <header className="sheet-header">
                         <h2 id="sheet-title">{title}</h2>
                         <button className="icon-btn" onClick={onClose} aria-label="Close">

@@ -3,7 +3,7 @@ import { getWeek } from '../api';
 import { useNewDay } from '../useNewDay';
 import { addDays, dayLabel, weekRange } from '../dates';
 import { formatKcal } from '../numbers';
-import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
+import { AlertIcon, ChevronLeftIcon, ChevronRightIcon, HistoryIcon } from './Icons';
 
 // "Burned 300 kcal · added to the budget", or null for a day with no exercise
 function burnedText(day)
@@ -11,6 +11,13 @@ function burnedText(day)
     if (day.burnedKcal === 0) return null;
     const added = day.budgetKcal > day.targetKcal; // that day added exercise to its budget
     return `Burned ${formatKcal(day.burnedKcal)} kcal${added ? ' · added to the budget' : ''}`;
+}
+
+// The pill colour for a day's status: no colour (grey) when nothing was logged
+function pillFor(day, isOver)
+{
+    if (!day.logged) return '';
+    return isOver ? 'pill-danger' : 'pill-success';
 }
 
 // One day: its total against that day's budget (the target, + exercise if that day added it),
@@ -40,7 +47,8 @@ function DayRow({ day, today, onOpen })
                 <span className="meter" aria-hidden="true">
                     {day.logged && <span className={isOver ? 'meter-fill over' : 'meter-fill'} style={{ width: `${filled}%` }} />}
                 </span>
-                <span className={isOver ? 'history-status over' : 'history-status'}>{status}</span>
+                {/* A pill: rose when over, mint when under, grey when not logged. The words say which, too. */}
+                <span className={`history-status pill ${pillFor(day, isOver)}`}>{status}</span>
                 {burned && <span className="history-burned num">{burned}</span>}
             </span>
         </button>
@@ -90,15 +98,16 @@ function History({ onOpenDay })
     {
         content = (
             <section className="card empty-state" role="alert">
-                <p>Couldn't load your history.</p>
+                <span className="empty-icon" aria-hidden="true"><AlertIcon /></span>
+                <p className="empty-title">Couldn't load your history.</p>
                 <p className="muted">{loadError}</p>
-                <button className="btn" onClick={retry}>Try again</button>
+                <button className="btn btn-primary" onClick={retry}>Try again</button>
             </section>
         );
     }
     else if (!week)
     {
-        content = <p className="muted" role="status">Loading…</p>;
+        content = <p className="muted loading" role="status">Loading…</p>;
     }
     else
     {
@@ -110,7 +119,8 @@ function History({ onOpenDay })
             <>
                 {week.loggedDays === 0 ? (
                     <section className="card empty-state">
-                        <p><strong>Nothing logged in these 7 days</strong></p>
+                        <span className="empty-icon" aria-hidden="true"><HistoryIcon size={20} /></span>
+                        <p className="empty-title">Nothing logged in these 7 days</p>
                         <p className="muted">Days you log show up here, with their total against your target.</p>
                     </section>
                 ) : (

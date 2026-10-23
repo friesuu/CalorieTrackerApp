@@ -3,7 +3,7 @@ import FoodRow from './FoodRow';
 import FoodForm from './FoodForm';
 import Sheet from './Sheet';
 import ConfirmButton from './ConfirmButton';
-import { PlusIcon, ChevronRightIcon } from './Icons';
+import { AlertIcon, ChevronRightIcon, FoodsIcon, PlusIcon } from './Icons';
 import { filterFoods } from '../foodSearch';
 
 // The Foods page: search, the library A to Z, add, and tap a food to edit or delete it.
@@ -45,21 +45,23 @@ function Foods({ foods, loadError, onRetry, onCreate, onUpdate, onDelete })
     {
         content = (
             <section className="card empty-state" role="alert">
-                <p>Couldn't load your foods.</p>
+                <span className="empty-icon" aria-hidden="true"><AlertIcon /></span>
+                <p className="empty-title">Couldn't load your foods.</p>
                 <p className="muted">{loadError}</p>
-                <button className="btn" onClick={onRetry}>Try again</button>
+                <button className="btn btn-primary" onClick={onRetry}>Try again</button>
             </section>
         );
     }
     else if (foods === null)
     {
-        content = <p className="muted" role="status">Loading your foods…</p>;
+        content = <p className="muted loading" role="status">Loading your foods…</p>;
     }
     else if (foods.length === 0)
     {
         content = (
             <section className="card empty-state">
-                <p><strong>Your food library is empty</strong></p>
+                <span className="empty-icon" aria-hidden="true"><FoodsIcon size={20} /></span>
+                <p className="empty-title">Your food library is empty</p>
                 <p className="muted">Add the foods you eat often, so logging them takes one tap.</p>
                 <button className="btn btn-primary" onClick={() => openAdd()}>Add your first food</button>
             </section>
@@ -69,7 +71,8 @@ function Foods({ foods, loadError, onRetry, onCreate, onUpdate, onDelete })
     {
         content = (
             <section className="card empty-state">
-                <p>No foods match “{query}”.</p>
+                <span className="empty-icon" aria-hidden="true"><FoodsIcon size={20} /></span>
+                <p className="empty-title">No foods match “{query}”.</p>
                 <button className="btn" onClick={() => openAdd(query)}>Add “{query}”</button>
             </section>
         );

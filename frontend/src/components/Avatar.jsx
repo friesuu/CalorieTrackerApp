@@ -1,5 +1,6 @@
 // The first letter of the user's name in a circle. Decoration only (aria-hidden):
 // wherever it appears, the name is also written out, or the button has a label.
+// size: 'small' (28px), 'medium' (32px), 'large' (40px) or 'xlarge' (56px, the Profile)
 function Avatar({ user, size = 'small' })
 {
     const initial = (user.name || user.email || '?').trim().charAt(0).toUpperCase();

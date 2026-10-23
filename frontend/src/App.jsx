@@ -1,17 +1,22 @@
 import './App.css';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getMe, logout, changePassword, getProfile, saveProfile, saveSettings, getFoods, createFood, updateFood, deleteFood,
   SESSION_EXPIRED_EVENT,
 } from './api';
 import { PAGES } from './pages';
+import { TABLET_UP } from './breakpoints';
+import { useMediaQuery } from './useMediaQuery';
 import Navigation from './components/Navigation';
+import NavDrawer from './components/NavDrawer';
+import { AlertIcon, MenuIcon } from './components/Icons';
 import FirstRun from './components/FirstRun';
 import Profile from './components/Profile';
 import Foods from './components/Foods';
 import Today from './components/Today';
 import History from './components/History';
 import AuthScreen from './components/AuthScreen';
+import UnsavedChangesDialog from './components/UnsavedChangesDialog';
 
 const SESSION_EXPIRED = 'Your session has expired. Please log in again.';
 
@@ -29,6 +34,14 @@ function App()
   const hasProfile = Boolean(profile);
   // A day picked on the History page, to open on Today: { date, today }. null = Today shows today.
   const [openDay, setOpenDay] = useState(null);
+  // From 720px wide the navigation is a sidebar. Narrower, it's a drawer opened with the menu button.
+  const hasSidebar = useMediaQuery(TABLET_UP);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuButtonRef = useRef(null); // focus goes back here when the drawer closes
+  // A Profile sub-page has changes that aren't saved. Leaving it then asks first (see guardLeave).
+  const [isDirty, setIsDirty] = useState(false);
+  // What to do if you choose "Discard changes" (e.g. go to Today). null = the question isn't showing.
+  const [pendingLeave, setPendingLeave] = useState(null);
 
   const userId = user?.id;
 
@@ -62,7 +75,21 @@ function App()
     setOpenDay(null);
     setError(null);
     setAuthNotice(notice);
+    setIsMenuOpen(false);
+    setIsDirty(false);
+    setPendingLeave(null);
   }, []);
+
+  // Closing or reloading the tab with unsaved changes: the browser asks its own "Leave site?" question
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = ''; // older browsers need this to show the question
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // Any request that finds the login gone (it expired, or a password change logged this device out)
   // fires this event from api.js: go back to the login screen and say why
@@ -135,10 +162,28 @@ function App()
     setFoods((prev) => prev.filter((f) => f.id !== id));
   };
 
-  // The menu always goes to a page's normal start, e.g. Today = today, not a day opened from History
+  // Every way of leaving a Profile sub-page goes through here: straight away, or after
+  // "Discard your changes?" when something isn't saved
+  const guardLeave = (leave) => {
+    if (isDirty) setPendingLeave(() => leave);
+    else leave();
+  };
+
+  const discardAndLeave = () => {
+    const leave = pendingLeave;
+    setPendingLeave(null);
+    setIsDirty(false);
+    leave();
+  };
+
+  // The menu always goes to a page's normal start, e.g. Today = today, not a day opened from History.
+  // Choosing a page also closes the drawer (phones), straight away, even if the page then asks first.
   const navigate = (page) => {
-    setOpenDay(null);
-    setView(page);
+    setIsMenuOpen(false);
+    guardLeave(() => {
+      setOpenDay(null);
+      setView(page);
+    });
   };
 
   const handleOpenDay = (date, today) => {
@@ -151,7 +196,8 @@ function App()
   {
     return(
       <main className="status-screen">
-        <div className="card status-card" role="alert">
+        <div className="card status-card empty-state" role="alert">
+          <span className="empty-icon" aria-hidden="true"><AlertIcon /></span>
           <h1>Can't connect</h1>
           <p className="muted">{error}</p>
           <button className="btn btn-primary" onClick={retry}>Try again</button>
@@ -167,7 +213,7 @@ function App()
 
   if (user === undefined || profile === undefined)
   {
-    return <main className="status-screen"><p className="muted" role="status">Loading…</p></main>;
+    return <main className="status-screen"><p className="muted loading" role="status">Loading…</p></main>;
   }
 
   // Nothing else is shown until the profile exists: every screen needs the calorie target
@@ -178,19 +224,34 @@ function App()
 
   const page = PAGES.find((p) => p.value === view);
 
+  // Phones only: the button at the left of every page's header that opens the navigation drawer
+  const menuButton = hasSidebar ? null : (
+    <button
+      ref={menuButtonRef}
+      type="button"
+      className="icon-btn"
+      aria-label="Menu"
+      aria-expanded={isMenuOpen}
+      aria-controls="nav-drawer"
+      onClick={() => setIsMenuOpen(true)}
+    >
+      <MenuIcon />
+    </button>
+  );
+
   return(
     <div className="app">
-      <Navigation user={user} currentView={view} onNavigate={navigate} />
+      {hasSidebar ? (
+        <Navigation user={user} currentView={view} onNavigate={navigate} placement="sidebar" />
+      ) : (
+        <NavDrawer isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} returnFocusTo={menuButtonRef}>
+          <Navigation user={user} currentView={view} onNavigate={navigate} placement="drawer" />
+        </NavDrawer>
+      )}
 
-      <main className="page">
-        {/* Today has its own header, with the day arrows */}
-        {view !== 'today' && (
-          <header className="page-header">
-            <h1>{page.label}</h1>
-          </header>
-        )}
-
-        {/* key: a different day opened from History starts a fresh Today page */}
+      <main className="main-panel">
+        {/* Today and Profile have their own header and content (Today: the day arrows; Profile: a back button
+            on its sub-pages). key: a different day opened from History starts a fresh Today page. */}
         {view === 'today' && (
           <Today
             key={openDay ? openDay.date : 'today'}
@@ -199,10 +260,9 @@ function App()
             onRetryFoods={retryFoods}
             initialDate={openDay?.date}
             initialToday={openDay?.today}
+            menuButton={menuButton}
           />
         )}
-
-        {view === 'history' && <History onOpenDay={handleOpenDay} />}
 
         {view === 'profile' && (
           <Profile
@@ -212,21 +272,38 @@ function App()
             onSaveSettings={handleSaveSettings}
             onChangePassword={changePassword}
             onLogout={handleLogout}
+            menuButton={menuButton}
+            onDirtyChange={setIsDirty}
+            guardLeave={guardLeave}
           />
         )}
 
-        {view === 'foods' && (
-          <Foods
-            foods={foods}
-            loadError={foodsError}
-            onRetry={retryFoods}
-            onCreate={handleCreateFood}
-            onUpdate={handleUpdateFood}
-            onDelete={handleDeleteFood}
-          />
-        )}
+        {(view === 'history' || view === 'foods') && (
+          <>
+            <header className="page-header">
+              {menuButton}
+              <h1 className="page-title">{page.label}</h1>
+            </header>
 
+            <div className="page page-narrow">
+              {view === 'history' && <History onOpenDay={handleOpenDay} />}
+
+              {view === 'foods' && (
+                <Foods
+                  foods={foods}
+                  loadError={foodsError}
+                  onRetry={retryFoods}
+                  onCreate={handleCreateFood}
+                  onUpdate={handleUpdateFood}
+                  onDelete={handleDeleteFood}
+                />
+              )}
+            </div>
+          </>
+        )}
       </main>
+
+      <UnsavedChangesDialog isOpen={pendingLeave !== null} onKeep={() => setPendingLeave(null)} onDiscard={discardAndLeave} />
     </div>
   );
 }

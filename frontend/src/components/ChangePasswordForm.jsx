@@ -1,15 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PasswordInput from './PasswordInput';
+import FormActions from './FormActions';
 
 // Asks for the current password too: someone at your unlocked phone shouldn't be able to take over
 // the account by changing it. onSave does the request; if it throws, the message shows here.
-function ChangePasswordForm({ onSave })
+// onCancel: show Save and Cancel (the Account page). onDirtyChange: whether anything has been typed.
+function ChangePasswordForm({ onSave, onCancel = null, onDirtyChange })
 {
     const [current, setCurrent] = useState('');
     const [next, setNext] = useState('');
     const [errors, setErrors] = useState({});
     const [serverError, setServerError] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    const isDirty = current !== '' || next !== '';
+    useEffect(() => {
+        onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+    useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -70,9 +78,13 @@ function ChangePasswordForm({ onSave })
 
             {serverError && <p className="form-error" role="alert">Couldn't change it: {serverError}</p>}
 
-            <button type="submit" className="btn btn-primary btn-block" disabled={isSaving}>
-                {isSaving ? 'Saving…' : 'Change password'}
-            </button>
+            {onCancel ? (
+                <FormActions isSaving={isSaving} onCancel={onCancel} saveLabel="Change password" />
+            ) : (
+                <button type="submit" className="btn btn-primary btn-block" disabled={isSaving}>
+                    {isSaving ? 'Saving…' : 'Change password'}
+                </button>
+            )}
         </form>
     );
 }
