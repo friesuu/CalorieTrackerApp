@@ -3,7 +3,8 @@ import { formatKcal } from '../numbers';
 
 // Shows the daily target AND how it was worked out, so the number isn't a black box:
 // maintenance − goal deficit (+ raised to the minimum, if needed) = target
-function TargetCard({ profile })
+// hero: the Profile's one big number, lifted like the day's ring on Today.
+function TargetCard({ profile, hero = false })
 {
     const t = profile.target;
     const goal = GOALS.find((g) => g.value === profile.goal);
@@ -11,7 +12,7 @@ function TargetCard({ profile })
     const people = profile.sex === 'FEMALE' ? 'women' : 'men';
 
     return (
-        <section className="card target-card" aria-labelledby="target-title">
+        <section className={hero ? 'card target-card hero-card' : 'card target-card'} aria-labelledby="target-title">
             <h2 id="target-title" className="card-label">Your daily target</h2>
             <p className="hero-number num">
                 {formatKcal(t.targetKcal)} <span className="hero-unit">kcal</span>

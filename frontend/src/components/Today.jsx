@@ -6,6 +6,7 @@ import {
 } from '../api';
 import { addDays, dayLabel, longDate, shortDate } from '../dates';
 import { useMediaQuery } from '../useMediaQuery';
+import { DESKTOP_UP } from '../breakpoints';
 import { useNewDay } from '../useNewDay';
 import { entryToAddTo, entryToMoveTo } from '../logMatching';
 import { mealLabel, mealWord } from '../meals';
@@ -20,7 +21,7 @@ import QuickAddForm from './QuickAddForm';
 import FoodPicker from './FoodPicker';
 import RecentFoods from './RecentFoods';
 import Sheet from './Sheet';
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from './Icons';
+import { AlertIcon, ChevronLeftIcon, ChevronRightIcon, FoodsIcon, PlusIcon } from './Icons';
 
 // Removing an entry (or an exercise) needs no "are you sure?": it's one item, and easy to add again
 function RemoveButton({ onRemove })
@@ -55,10 +56,11 @@ function RemoveButton({ onRemove })
 // The daily log: what's left today, the four meals, exercise, and adding more. Tap a meal to open it.
 // Its data (the day) lives here, not in App: no other page needs it.
 // foods (the library) comes from App, because the Foods page uses the same list.
-// initialDate / initialToday: set when a day is opened from the History page
-function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialToday = null })
+// initialDate / initialToday: set when a day is opened from the History page.
+// menuButton: the button that opens the navigation on phones (null from 720px, where the sidebar is shown)
+function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialToday = null, menuButton = null })
 {
-    const isLaptop = useMediaQuery('(min-width: 1024px)'); // laptop: the library sits beside the log
+    const isLaptop = useMediaQuery(DESKTOP_UP); // laptop: the library sits beside the log
     // null = today (the server says which day that is)
     const [selectedDate, setSelectedDate] = useState(initialDate && initialDate !== initialToday ? initialDate : null);
     const [today, setToday] = useState(initialToday); // 'YYYY-MM-DD', learnt from the first load of today
@@ -268,7 +270,7 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
                     Add food
                 </button>
             )}
-            <button className="btn" onClick={() => openQuickAdd('')}>Quick add</button>
+            <button className="btn btn-tint-info" onClick={() => openQuickAdd('')}>Quick add</button>
         </div>
     );
 
@@ -281,27 +283,31 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
         const count = summary.entries.length;
 
         header = (
-            <header className="page-header meal-header">
-                <button className="btn back-btn" onClick={() => setOpenMeal(null)} aria-label={`Back to ${label}`}>
-                    <ChevronLeftIcon />
-                    {label}
-                </button>
-                <div>
-                    <h1 ref={mealTitleRef} tabIndex={-1}>{mealLabel(openMeal)}</h1>
-                    <p className="muted">{isNearDay ? `${label} · ${shortDate(day.date)}` : label}</p>
-                </div>
+            <header className="page-header">
+                {menuButton}
+                <h1 ref={mealTitleRef} tabIndex={-1} className="page-title">{mealLabel(openMeal)}</h1>
             </header>
         );
         content = (
             <>
+                {/* Back to the day ("‹ Today"), and its date when the button doesn't already say it */}
+                <div className="day-bar">
+                    <button className="btn btn-ghost back-btn" onClick={() => setOpenMeal(null)} aria-label={`Back to ${label}`}>
+                        <ChevronLeftIcon />
+                        {label}
+                    </button>
+                    {isNearDay && <p className="muted">{shortDate(day.date)}</p>}
+                </div>
                 <MealSummary summary={summary} dayTargetKcal={day.targetKcal} />
                 {actions}
                 <RecentFoods foods={recent} onPick={(food) => pickFood(food)} />
 
                 <section className="day-log" aria-labelledby="log-title">
                     {/* The heading says where to drop while a food is being dragged (no layout jump) */}
-                    <h2 id="log-title" className="list-meta">
-                        {isDragging ? 'Drop below to add' : count === 0 ? 'Logged' : `Logged · ${count} ${count === 1 ? 'item' : 'items'}`}
+                    <h2 id="log-title" className="section-head">
+                        {isDragging ? 'Drop below to add' : (
+                            <>Logged {count > 0 && <span className="pill pill-info">{count} {count === 1 ? 'item' : 'items'}</span>}</>
+                        )}
                     </h2>
                     {/* The meal's whole list is one drop zone. A dropped food opens the add sheet for this meal. */}
                     <Droppable droppableId={`meal:${openMeal}`}>
@@ -313,7 +319,8 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
                             >
                                 {count === 0 ? (
                                     <div className="card empty-state">
-                                        <p><strong>Nothing in {mealWord(openMeal)} yet</strong></p>
+                                        <span className="empty-icon" aria-hidden="true"><FoodsIcon size={20} /></span>
+                                        <p className="empty-title">Nothing in {mealWord(openMeal)} yet</p>
                                         <p className="muted">
                                             {isLaptop ? 'Drag a food here from your library, or tap it to add.' : 'Tap Add food, or use quick add for something not in your library.'}
                                         </p>
@@ -332,19 +339,11 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
     else
     {
         // ---------- The day: the title says which day; the arrows move a day at a time ----------
-        // The date under it only when the title doesn't already show it ("Today", "Yesterday"),
-        // and short for yesterday, so it fits beside the Today button on a phone.
         header = (
-            <header className="page-header day-header">
-                <div>
-                    <h1>{label}</h1>
-                    {day && label === 'Today' && <p className="muted">{longDate(day.date)}</p>}
-                    {day && label === 'Yesterday' && <p className="muted">{shortDate(day.date)}</p>}
-                </div>
-                <div className="day-arrows">
-                    {!isToday && day && (
-                        <button className="btn" onClick={() => goToDate(today)}>Today</button>
-                    )}
+            <header className="page-header">
+                {menuButton}
+                <h1 className="page-title">{label}</h1>
+                <div className="page-actions">
                     <button className="icon-btn" aria-label="Previous day" disabled={!day} onClick={() => goToDate(addDays(day.date, -1))}>
                         <ChevronLeftIcon />
                     </button>
@@ -354,32 +353,43 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
                 </div>
             </header>
         );
+        // Under the header: the date when the title doesn't already show it ("Today", "Yesterday"),
+        // and on an earlier day, a button straight back to today
+        const dayBar = day && (isNearDay || !isToday) && (
+            <div className="day-bar">
+                {label === 'Today' && <p className="muted">{longDate(day.date)}</p>}
+                {label === 'Yesterday' && <p className="muted">{shortDate(day.date)}</p>}
+                {!isToday && <button className="btn" onClick={() => goToDate(today)}>Today</button>}
+            </div>
+        );
 
         if (loadError)
         {
             content = (
                 <section className="card empty-state" role="alert">
-                    <p>Couldn't load this day.</p>
+                    <span className="empty-icon" aria-hidden="true"><AlertIcon /></span>
+                    <p className="empty-title">Couldn't load this day.</p>
                     <p className="muted">{loadError}</p>
-                    <button className="btn" onClick={retry}>Try again</button>
+                    <button className="btn btn-primary" onClick={retry}>Try again</button>
                 </section>
             );
         }
         else if (!day)
         {
-            content = <p className="muted" role="status">Loading…</p>;
+            content = <p className="muted loading" role="status">Loading…</p>;
         }
         else
         {
             const unsorted = day.unsortedEntries.length;
             content = (
                 <>
+                    {dayBar}
                     <DaySummary day={day} isToday={isToday} />
                     {actions}
                     <RecentFoods foods={recent} onPick={(food) => pickFood(food)} />
 
                     <section className="meals" aria-labelledby="meals-title">
-                        <h2 id="meals-title" className="list-meta">{isDragging ? 'Drop on a meal to add' : 'Meals'}</h2>
+                        <h2 id="meals-title" className="section-head">{isDragging ? 'Drop on a meal to add' : 'Meals'}</h2>
                         {/* divs with list roles, not <ul>/<li>: the drag library's placeholder inside each card
                             copies the dragged row's tag (an <li>), and an <li> can't sit inside another */}
                         <div className="meal-list" role="list">
@@ -394,8 +404,8 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
                     {/* Logged before there were meals. Nothing guesses which meal they were: you sort them. */}
                     {unsorted > 0 && (
                         <section className="day-log" aria-labelledby="unsorted-title">
-                            <h2 id="unsorted-title" className="list-meta">
-                                Not sorted yet · {unsorted} {unsorted === 1 ? 'item' : 'items'}
+                            <h2 id="unsorted-title" className="section-head">
+                                Not sorted yet <span className="pill pill-warning">{unsorted} {unsorted === 1 ? 'item' : 'items'}</span>
                             </h2>
                             <p className="field-hint">Logged before meals were added. They count in the day's total. Tap one to put it in a meal.</p>
                             <EntryList entries={day.unsortedEntries} onEdit={editEntry} />
@@ -416,30 +426,32 @@ function Today({ foods, foodsError, onRetryFoods, initialDate = null, initialTod
     // has to be inside the same one
     return (
         <DragDropContext onDragStart={() => setIsDragging(true)} onDragEnd={handleDragEnd}>
-            <div className={isLaptop ? 'today-layout' : 'today-stack'}>
-                <div className="today-main">
-                    {header}
-                    {content}
+            {header}
+            <div className="page page-today">
+                <div className={isLaptop ? 'today-layout' : 'today-stack'}>
+                    <div className="today-main">
+                        {content}
+                    </div>
+
+                    {isLaptop && (
+                        <aside className="card library-panel" aria-labelledby="library-title">
+                            <h2 id="library-title" className="card-label">Your foods</h2>
+                            <FoodPicker
+                                foods={foods}
+                                loadError={foodsError}
+                                onRetry={onRetryFoods}
+                                onPick={(food) => day && pickFood(food)}
+                                onQuickAdd={(name) => day && openQuickAdd(name)}
+                                draggable
+                            />
+                        </aside>
+                    )}
                 </div>
-
-                {isLaptop && (
-                    <aside className="card library-panel" aria-labelledby="library-title">
-                        <h2 id="library-title" className="section-title">Your foods</h2>
-                        <FoodPicker
-                            foods={foods}
-                            loadError={foodsError}
-                            onRetry={onRetryFoods}
-                            onPick={(food) => day && pickFood(food)}
-                            onQuickAdd={(name) => day && openQuickAdd(name)}
-                            draggable
-                        />
-                    </aside>
-                )}
-
-                <Sheet title={sheetTitle} isOpen={sheet !== null} onClose={() => setSheet(null)}>
-                    {sheetContent}
-                </Sheet>
             </div>
+
+            <Sheet title={sheetTitle} isOpen={sheet !== null} onClose={() => setSheet(null)}>
+                {sheetContent}
+            </Sheet>
         </DragDropContext>
     );
 }

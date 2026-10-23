@@ -11,8 +11,9 @@ function macrosText(day)
     ].filter(Boolean).join(' · ');
 }
 
-// The top card on the daily log: the ring (what's left, or how far over, in the middle), then
-// eaten and left as kcal and % of the budget. Over is said in words AND shown in colour, never colour alone.
+// The top card on the daily log: the ring (what's left, or how far over, in the middle), then eaten and
+// left (or over) under it as two tinted tiles with kcal and % of the budget. Everything is centred in one
+// column. Over is said in words AND shown in colour, never colour alone.
 // With exercise, a line shows exactly how "remaining" was worked out, so the number is never a mystery.
 // isToday: only today follows the Profile setting; a past day keeps the one it had.
 function DaySummary({ day, isToday })
@@ -25,16 +26,17 @@ function DaySummary({ day, isToday })
     const macros = macrosText(day);
 
     return (
-        <section className={isOver ? 'card summary-card ring-card over' : 'card summary-card ring-card'} aria-label="Calories">
+        <section className={isOver ? 'card summary-card hero-card ring-card over' : 'card summary-card hero-card ring-card'} aria-label="Calories">
             <ProgressRing eatenKcal={day.eatenKcal} budgetKcal={day.budgetKcal} remainingKcal={day.remainingKcal} />
 
+            {/* Eaten in periwinkle (the ring's colour); Left in mint, or Over in rose */}
             <dl className="ring-stats num">
-                <div className="ring-stat">
-                    <dt><span className="ring-key eaten" aria-hidden="true" />Eaten</dt>
+                <div className="ring-stat eaten">
+                    <dt>Eaten</dt>
                     <dd>{formatKcal(day.eatenKcal)} kcal <span className="ring-pct">({eatenPct}%)</span></dd>
                 </div>
-                <div className="ring-stat">
-                    <dt><span className={isOver ? 'ring-key over' : 'ring-key'} aria-hidden="true" />{isOver ? 'Over' : 'Left'}</dt>
+                <div className={isOver ? 'ring-stat over' : 'ring-stat left'}>
+                    <dt>{isOver ? 'Over' : 'Left'}</dt>
                     <dd>
                         {formatKcal(Math.abs(day.remainingKcal))} kcal{' '}
                         <span className="ring-pct">({isOver ? eatenPct - 100 : 100 - eatenPct}%)</span>

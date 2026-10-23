@@ -1,9 +1,9 @@
 import { formatKcal } from '../numbers';
 
-// The ring is drawn in a 120 × 120 box: a circle of radius 52 with a 10-wide stroke just fits inside
-const RADIUS = 52;
-const STROKE = 10;
-const LENGTH = 2 * Math.PI * RADIUS; // the circle's length, about 327
+// The ring is drawn in a 120 × 120 box: a circle of radius 50 with a 13-wide stroke just fits inside
+const RADIUS = 50;
+const STROKE = 13;
+const LENGTH = 2 * Math.PI * RADIUS; // the circle's length, about 314
 
 // How much of the day's budget is eaten, as a ring, with what's left (or how far over) in the middle.
 // The ring is drawn with one long dash: strokeDasharray makes the dash as long as the circle, and

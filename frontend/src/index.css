@@ -1,30 +1,176 @@
-/* Design tokens ("Soft Minimal"). Every colour in the app comes from here: no colours in components. */
+/* Design tokens: the "Haze" design system (design/DESIGN.md), light theme.
+   Every colour, font size, radius, space and shadow in the app comes from here: components never use raw values.
+   (A dark theme would go in a [data-theme="dark"] block below. Not built yet.) */
 :root {
-  --ground: #F5F6F4;      /* page background */
-  --surface: #FFFFFF;     /* cards, inputs, sheets */
-  --ink: #1C1F1A;         /* primary text */
-  --muted: #6B7068;       /* secondary text, labels */
-  --border: #E4E6E1;      /* card borders and row dividers */
-  --accent: #2F9E6A;      /* progress fill, focus ring, icons, drop-zone border */
-  --over: #C2553A;        /* over-target state only */
-  --accent-soft: #E6F4EC; /* drop-zone highlight, selected row */
+  /* ---------- Surfaces ---------- */
+  --page: #ECEEF4;        /* app background behind the panels */
+  --nav: #F8F9FC;         /* sidebar / drawer */
+  --panel: #FFFFFF;       /* main content panel, sheets */
+  --raised: #FFFFFF;      /* cards, inputs, buttons, lists */
+  --sunken: #F4F5F9;      /* tracks, segmented-control track, icon circles */
+  --bar: #FAFBFD;         /* sticky header on phones */
+  --hover: #F4F5F9;       /* hover and pressed rows, buttons, nav items */
+  --selected-bg: #E9EBFB; /* current nav item, selected choice */
+  --selected-text: #2F3794;
 
-  /* The same green, darker. White text on --accent is only 3.4:1, so buttons and green TEXT
-     use this one to reach 4.5:1. Not a second accent: same hue, for text only. */
-  --accent-strong: #1F7A50;
+  /* ---------- Borders and dividers ---------- */
+  --border-nav: #E2E5EE;
+  --border-panel: #E2E5EE;
+  --border: #E8EBF2;        /* cards, rows, chips, secondary buttons, tracks */
+  --border-strong: #DDE1EA; /* inputs, unticked boxes */
+  --divider: #EDEFF4;       /* under headers, between sections */
+  --divider-subtle: #EEF0F4; /* between list rows */
 
-  --radius-card: 14px;
-  --radius-control: 10px;
-  --lift: 0 8px 24px rgba(28, 31, 26, 0.14); /* the one shadow: an item being dragged */
-  --scrim: rgba(28, 31, 26, 0.4);             /* dims the page behind an open sheet (--ink, see-through) */
+  /* ---------- Text ---------- */
+  --text: #262B5C;   /* indigo ink */
+  --text-2: #4E5383; /* labels, secondary text */
+  --muted: #6B6F94;  /* help text, meta */
+  --placeholder: #7E82A3;
+  --link: #4A55C9;
 
-  --font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* ---------- Accent ---------- */
+  --accent: #5B67E8; /* focus rings, ticked controls, ring and bar fills */
+  --primary-bg: #5B67E8;
+  --primary-text: #FFFFFF;
+  --tint: #E6E8FC;   /* avatars */
+  --scrim: rgba(15, 17, 32, 0.35); /* behind sheets and the drawer */
+  /* The day's main card: a soft outline mixed from the accent (rose when over) */
+  --hero-border: color-mix(in srgb, var(--accent) 35%, var(--raised));
+  --hero-border-over: color-mix(in srgb, var(--danger-icon) 35%, var(--raised));
+
+  /* ---------- Status: each colour has one meaning everywhere ---------- */
+  /* Info: neutral highlights, counts, notes */
+  --info-tint: #E6E8FC;
+  --info-icon: #5B67E8;
+  --info-text: #2F3794;
+  /* Success: saved, under target */
+  --success-tint: #DDF3EA;
+  --success-icon: #2B8C70;
+  --success-text: #1F6B55;
+  /* Warning: needs attention (not sorted yet, session expired) */
+  --warning-tint: #FDEBDD;
+  --warning-icon: #C8692F;
+  --warning-text: #9A4A1C;
+  /* Danger: errors, over target, removing things */
+  --danger-tint: #FBE4EA;
+  --danger-icon: #D0597A;
+  --danger-text: #9C2F4E;
+  /* Neutral: no status, not logged, kcal left */
+  --neutral-tint: #EEF0F4;
+  --neutral-icon: #6B6F94;
+  --neutral-text: #4E5383;
+
+  /* ---------- Category colours: the status palette used like series in a chart (small things only:
+     icon circles and nav icons). They tell things apart; they don't mean good or bad. ---------- */
+  --meal-breakfast-tint: var(--success-tint);
+  --meal-breakfast: var(--success-icon);
+  --meal-lunch-tint: var(--warning-tint);
+  --meal-lunch: var(--warning-icon);
+  --meal-dinner-tint: var(--info-tint);
+  --meal-dinner: var(--info-icon);
+  --meal-snack-tint: var(--danger-tint);
+  --meal-snack: var(--danger-icon);
+  --page-today: var(--info-icon);
+  --page-foods: var(--success-icon);
+  --page-history: var(--warning-icon);
+
+  /* ---------- Shadows ---------- */
+  --shadow-panel: 0 1px 3px rgba(35, 38, 64, 0.05), 0 16px 40px rgba(35, 38, 64, 0.07);
+  /* A soft lift as well as the edge, so white cards stand apart from the white panel */
+  --shadow-card: 0 1px 2px rgba(35, 38, 64, 0.06), 0 4px 12px rgba(35, 38, 64, 0.05);
+  --shadow-control: 0 1px 2px rgba(35, 38, 64, 0.04);
+  --shadow-float: 0 12px 32px rgba(35, 38, 64, 0.12); /* sheets, the drag copy */
+  /* The day's main card: a soft glow in the accent (rose when over), so it lifts off the page */
+  --shadow-hero: 0 2px 6px rgba(91, 103, 232, 0.10), 0 18px 44px rgba(91, 103, 232, 0.20);
+  --shadow-hero-over: 0 2px 6px rgba(208, 89, 122, 0.10), 0 18px 44px rgba(208, 89, 122, 0.20);
+
+  /* ---------- Radius ---------- */
+  --radius-panel: 28px;   /* main panel, sign-in panel */
+  --radius-sheet: 24px;   /* nav panel, sheets, drawer */
+  --radius-large: 20px;   /* large cards (the day's ring) */
+  --radius-card: 16px;    /* cards, lists, alerts */
+  --radius-control: 14px; /* buttons, inputs, nav items, rows */
+  --radius-segment: 12px; /* segmented-control segments */
+  --radius-check: 6px;    /* checkboxes */
+  --radius-pill: 999px;   /* pills, chips, icon buttons, avatars */
+
+  /* ---------- Spacing: these nine values only ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---------- Type ---------- */
+  --font: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --text-h1: 22px;
+  --text-h1-mobile: 20px;
+  --text-h2: 18px;
+  --text-h3: 16px;
+  --text-body: 15px;
+  --text-input-mobile: 16px; /* 16px stops iPhones zooming in when a field is tapped */
+  --text-small: 13px;
+  --text-pill: 12px;
+  --text-brand: 17px;
+  --text-stat: 28px; /* the big numbers: the target, a meal's remaining, the weekly average */
+  --text-hero: 32px; /* what's left today, in the middle of the day's ring */
+
+  /* ---------- Layout ---------- */
+  --nav-width: 248px;
+  --nav-width-tablet: 224px;
+  --content-wide: 1120px;   /* Today, the Profile on laptops */
+  --content-narrow: 720px;  /* forms, lists, settings */
+  --drawer-width: min(320px, 85vw);
+  --tap: 44px;              /* the smallest thing you can tap */
+  --avatar-sm: 28px;
+  --avatar-md: 32px;
+  --avatar-lg: 40px;
+  --avatar-xl: 56px; /* the Profile's header */
+  --row-height: 56px;       /* list rows with two lines */
+  --input-pad: 14px;        /* inside text fields, left and right */
+  --pill-pad: 2px 10px;
+  --sheet-width: 520px;     /* sheets open in the middle from 720px */
+  --handle-width: 36px;     /* the grab handle on top of a bottom sheet */
+  --track: 8px;             /* progress bars */
+  --track-thin: 6px;        /* the small bars in meal cards and history rows */
+  --status-width: 400px;    /* the "Can't connect" card */
+  --auth-width: 480px;      /* the log in / sign up panel */
+  --ring-size: 200px;       /* the day's progress ring */
+  --meal-card-min: 260px;   /* meal cards go two by two when two of these fit */
+  --library-min: 280px;     /* the food library beside the day (desktop) */
+  --library-max: 380px;
+  --library-share: 38%;     /* of the content width, between the two above */
+  --profile-list-min: 260px;  /* the Profile's settings list on laptops: a share of the width, in this range */
+  --profile-list-max: 320px;
+  --profile-list-share: 34%;
+  --split-input-col: 104px; /* meal split: the % box */
+  --split-kcal-col: 88px;   /* meal split: "540 kcal" */
+  --history-kcal-col: 152px; /* the right column of a History row: "2,300 / 1,947 kcal" */
+  --icon-xs: 14px;          /* in field errors */
+  --icon-sm: 16px;          /* in buttons */
+  --icon-md: 18px;          /* in alerts */
+  --icon-lg: 20px;          /* in empty states */
+
+  /* ---------- Motion ---------- */
+  --motion: 180ms ease-out;
+  --motion-ring-draw: 800ms; /* the ring drawing itself in when a day opens */
+  --motion-ring-slide: 500ms; /* the ring moving to a new total */
+
+  /* ---------- Icons, drawn with CSS masks so they take the text colour (currentColor) ---------- */
+  --icon-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5'/%3E%3Cpath d='M12 16.25h.01'/%3E%3C/svg%3E");
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M8.5 12.5l2.5 2.5 4.5-5'/%3E%3C/svg%3E");
+  --icon-info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Cpath d='M12 7.75h.01'/%3E%3C/svg%3E");
+  --icon-tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
 
   font-family: var(--font);
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--ink);
-  background-color: var(--ground);
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--text);
+  background-color: var(--page);
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
 }
@@ -37,8 +183,10 @@
 
 body {
   margin: 0;
-  min-height: 100svh;
-  background-color: var(--ground);
+  min-height: 100vh; /* fallback for browsers without dvh */
+  min-height: 100dvh;
+  /* Phones: the panel fills the screen edge to edge. From 720px the panels sit on --page (App.css). */
+  background-color: var(--panel);
 }
 
 h1,
@@ -46,11 +194,31 @@ h2,
 h3 {
   margin: 0;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.3;
+}
+
+h1 {
+  font-size: var(--text-h1);
+  letter-spacing: -0.015em;
+}
+
+h2 {
+  font-size: var(--text-h2);
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: var(--text-h3);
 }
 
 p {
   margin: 0;
+}
+
+/* Haze never uses 700 */
+strong,
+b {
+  font-weight: 600;
 }
 
 /* Form controls don't inherit the page font by default */
@@ -66,6 +234,11 @@ button {
   cursor: pointer;
 }
 
+::placeholder {
+  color: var(--placeholder);
+  opacity: 1;
+}
+
 /* One visible focus ring for everything you can tab to */
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -75,4 +248,21 @@ button {
 /* Calorie numbers: every digit the same width, so totals don't jitter as they change */
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+/* No animation at all for people who turn it off in their system settings */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (min-width: 720px) {
+  body {
+    background-color: var(--page);
+  }
 }

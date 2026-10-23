@@ -3,9 +3,9 @@ import { TodayIcon, FoodsIcon, HistoryIcon } from './Icons';
 import Avatar from './Avatar';
 
 // The menu. It only shows buttons; App decides what happens (onNavigate).
-// The same buttons are a bottom tab bar on phones and a left sidebar on laptops: only the CSS changes (.nav in App.css).
-// The Profile tab shows your initial instead of an icon, so you can see who's logged in on a phone too.
-function Navigation({ user, currentView, onNavigate })
+// placement: 'sidebar' (always on screen from 720px wide) or 'drawer' (phones: opened with the menu button).
+// The contents are the same in both. The Profile item shows your initial instead of an icon.
+function Navigation({ user, currentView, onNavigate, placement })
 {
     const icons = {
         today: <TodayIcon />,
@@ -15,8 +15,7 @@ function Navigation({ user, currentView, onNavigate })
     };
 
     return(
-        <nav className="nav" aria-label="Pages">
-            {/* Only shown in the laptop sidebar; on a phone each page has its own title */}
+        <nav className={`nav nav-${placement}`} aria-label="Pages">
             <div className="nav-brand">Calorie Tracker</div>
 
             <ul className="nav-list">
@@ -25,6 +24,7 @@ function Navigation({ user, currentView, onNavigate })
                         {/* aria-current tells screen readers which page is open, not just the colour */}
                         <button
                             className={currentView === p.value ? 'nav-item active' : 'nav-item'}
+                            data-page={p.value}
                             aria-current={currentView === p.value ? 'page' : undefined}
                             onClick={() => onNavigate(p.value)}
                         >
@@ -35,9 +35,9 @@ function Navigation({ user, currentView, onNavigate })
                 ))}
             </ul>
 
-            {/* Laptop only: who's logged in, at the bottom of the sidebar */}
+            {/* Who's logged in, at the bottom */}
             <div className="nav-user">
-                <Avatar user={user} />
+                <Avatar user={user} size="medium" />
                 <div className="nav-user-text">
                     <span className="nav-user-name">{user.name}</span>
                     <span className="nav-user-email">{user.email}</span>

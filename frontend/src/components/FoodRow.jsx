@@ -11,9 +11,23 @@ function macrosText(food)
 }
 
 // One food in a list: name on the left, serving muted in the middle, calories on the right.
-// Used by the Foods page now, and by the library next to the daily log later.
-function FoodRow({ food })
+// stacked (the Today library): two lines, the serving under the name and the calories as a pill,
+// so a narrow list reads as one column of names and one of numbers.
+function FoodRow({ food, stacked = false })
 {
+    if (stacked)
+    {
+        return(
+            <div className="food-row stacked">
+                <span className="food-name">
+                    {food.name}
+                    <span className="food-sub">{formatServing(food.servingSize, food.servingUnit)}</span>
+                </span>
+                <span className="pill pill-info num">{formatKcal(food.kcalPerServing)} kcal</span>
+            </div>
+        );
+    }
+
     const macros = macrosText(food);
 
     return(

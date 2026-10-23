@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import FormActions from './FormActions';
 import { DEFAULT_SPLIT, MEALS, mealTargets } from '../meals';
 import { formatKcal } from '../numbers';
 
@@ -7,14 +8,21 @@ const asText = (split) => Object.fromEntries(MEALS.map((m) => [m.key, String(spl
 const isWholePercent = (text) => /^\d{1,3}$/.test(text) && Number(text) <= 100;
 
 // How the daily target is shared out between the meals, in whole percent that add up to 100.
-// Each meal's kcal updates as you type, worked out the same way as the server's.
-function MealSplitForm({ profile, onSave })
+// Each meal's kcal updates as you type, worked out the same way as the server's. Saving is blocked
+// (with the reason) until the four add up to 100. onDirtyChange: whether anything changed.
+function MealSplitForm({ profile, onSave, onCancel, onDirtyChange })
 {
     const [values, setValues] = useState(() => asText(profile.mealSplit));
     const [error, setError] = useState(null);
     const [serverError, setServerError] = useState(null);
-    const [success, setSuccess] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    const saved = asText(profile.mealSplit);
+    const isDirty = MEALS.some((m) => values[m.key] !== saved[m.key]);
+    useEffect(() => {
+        onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
+    useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
     const targetKcal = profile.target.targetKcal;
     const allWhole = MEALS.every((m) => isWholePercent(values[m.key]));
@@ -27,13 +35,11 @@ function MealSplitForm({ profile, onSave })
     const change = (key, value) => {
         setValues((prev) => ({ ...prev, [key]: value }));
         setError(null);
-        setSuccess(null);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setServerError(null);
-        setSuccess(null);
 
         if (!allWhole)
         {
@@ -49,15 +55,11 @@ function MealSplitForm({ profile, onSave })
         setIsSaving(true);
         try
         {
-            await onSave({ mealSplit: split });
-            setSuccess("Saved. Today uses the new split; days already logged keep theirs.");
+            await onSave({ mealSplit: split }); // the page then goes back to the overview
         }
         catch (err)
         {
             setServerError(err.message);
-        }
-        finally
-        {
             setIsSaving(false);
         }
     };
@@ -103,20 +105,16 @@ function MealSplitForm({ profile, onSave })
                 <span>{total === null ? '–' : total === 100 ? '100%' : `${total}% · needs to be 100%`}</span>
             </p>
 
+            {!isDefault && (
+                <button type="button" className="link-btn split-reset" onClick={() => { setValues(asText(DEFAULT_SPLIT)); setError(null); }}>
+                    Use 25 / 35 / 30 / 10
+                </button>
+            )}
+
             {error && <p className="form-error" role="alert">{error}</p>}
             {serverError && <p className="form-error" role="alert">Couldn't save: {serverError}</p>}
-            {success && <p className="form-success" role="status">{success}</p>}
 
-            <div className="split-actions">
-                <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                    {isSaving ? 'Saving…' : 'Save split'}
-                </button>
-                {!isDefault && (
-                    <button type="button" className="link-btn" onClick={() => { setValues(asText(DEFAULT_SPLIT)); setError(null); setSuccess(null); }}>
-                        Use 25 / 35 / 30 / 10
-                    </button>
-                )}
-            </div>
+            <FormActions isSaving={isSaving} onCancel={onCancel} />
         </form>
     );
 }

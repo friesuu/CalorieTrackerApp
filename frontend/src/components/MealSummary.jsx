@@ -1,5 +1,6 @@
 import { formatKcal } from '../numbers';
 import { mealLabel, mealProgress, mealWord } from '../meals';
+import MealIcon from './MealIcon';
 
 // The top card inside a meal, like the day's summary card: what's left of this meal's share of the day.
 // Over its share is said in words AND shown in colour, never colour alone.
@@ -11,7 +12,10 @@ function MealSummary({ summary, dayTargetKcal })
 
     return (
         <section className={isOver ? 'card summary-card over' : 'card summary-card'} aria-label={`${mealLabel(summary.meal)} calories`}>
-            <p className="card-label">{isOver ? "Over this meal's share" : 'Remaining'}</p>
+            <div className="card-head">
+                <MealIcon meal={summary.meal} />
+                <p className="card-label">{isOver ? "Over this meal's share" : 'Remaining'}</p>
+            </div>
             <p className="hero-number num">
                 {isOver ? `Over by ${formatKcal(-remaining)}` : formatKcal(remaining)}
                 <span className="hero-unit"> kcal</span>

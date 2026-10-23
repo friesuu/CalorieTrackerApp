@@ -9,6 +9,15 @@ export function todayString()
     return `${year}-${month}-${day}`;
 }
 
+// How old someone born on `birthDate` is on `today` (both 'YYYY-MM-DD'): the same sum as the server's ageOn
+export function ageOn(birthDate, today)
+{
+    const [birthYear, birthMonth, birthDay] = birthDate.split('-').map(Number);
+    const [year, month, day] = today.split('-').map(Number);
+    const hadBirthday = month > birthMonth || (month === birthMonth && day >= birthDay);
+    return year - birthYear - (hadBirthday ? 0 : 1);
+}
+
 // The same day `years` earlier, e.g. ('2026-10-15', 18) → '2008-10-15'.
 // Kept as text so it can be compared with other 'YYYY-MM-DD' dates using < and >.
 export function yearsBefore(date, years)

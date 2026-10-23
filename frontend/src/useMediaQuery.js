@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-// true while the screen matches a CSS media query, e.g. useMediaQuery('(min-width: 1024px)').
+// true while the screen matches a CSS media query, e.g. useMediaQuery(DESKTOP_UP) (see breakpoints.js).
 // For layout that CSS alone can't do: the laptop shows the food library beside the log,
 // the phone opens it in a sheet instead (two copies would mean two search boxes with the same id).
 export function useMediaQuery(query)
